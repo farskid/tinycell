@@ -7,11 +7,13 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --experimental-transform-types --test --test-concurrency=1 src/engine.test.ts src/ANSIPainter.test.ts src/TTY.test.ts",
+    "dev": "vite --config games/snake/vite.config.ts",
+    "test": "node --experimental-transform-types --test --test-concurrency=1 src/engine.test.ts src/ANSIPainter.test.ts src/TTY.test.ts src/WebCanvas.test.ts src/WebEvent.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vite": "^8.3.0"
   }
 }

@@ -183,8 +183,14 @@ test("snapshot round-trips version, tick, and app payload", () => {
     for (let i = 0; i < 3; i++) mock.timers.tick(50);
     const blob = engine.snapshot();
     assert.equal(blob[0], 1);
-    assert.equal(blob[1]! | (blob[2]! << 8) | (blob[3]! << 16) | (blob[4]! << 24), 3);
-    assert.equal(blob[5]! | (blob[6]! << 8) | (blob[7]! << 16) | (blob[8]! << 24), 4);
+    assert.equal(
+      blob[1]! | (blob[2]! << 8) | (blob[3]! << 16) | (blob[4]! << 24),
+      3,
+    );
+    assert.equal(
+      blob[5]! | (blob[6]! << 8) | (blob[7]! << 16) | (blob[8]! << 24),
+      4,
+    );
     assert.deepEqual(blob.subarray(9), payload);
 
     restored = new Uint8Array(0);
@@ -199,7 +205,10 @@ test("snapshot round-trips version, tick, and app payload", () => {
 
     const bad = new Uint8Array(9);
     bad[0] = 2;
-    assert.throws(() => createEngine({ app: game, painter: fakePainter(), resume: bad }), /version/);
+    assert.throws(
+      () => createEngine({ app: game, painter: fakePainter(), resume: bad }),
+      /version/,
+    );
   } finally {
     mock.timers.reset();
   }

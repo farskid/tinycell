@@ -103,7 +103,11 @@ export class Surface {
     for (let i = 0; i < s.length; i++) {
       const xx = x + i;
       if (xx < 0 || xx >= this.w) continue;
-      this.cells[y * this.w + xx] = packCell(s.charCodeAt(i) & CHAR_MASK, fg, bg);
+      this.cells[y * this.w + xx] = packCell(
+        s.charCodeAt(i) & CHAR_MASK,
+        fg,
+        bg,
+      );
     }
   }
 }
@@ -177,7 +181,7 @@ export function charEvent(codepoint: number): number {
 }
 
 export function keyOf(ev: number): Key | 0 {
-  if ((ev >>> 24) !== KIND_KEY) return 0;
+  if (ev >>> 24 !== KIND_KEY) return 0;
   const code = ev & 0xffffff;
   if (code < Key.Up || code > Key.CtrlC) return 0;
   return code as Key;
@@ -188,7 +192,7 @@ export interface InputSource {
 }
 
 export interface App {
-  tick(input: InputQueue): void;
+  tick(input: InputQueue, engine: Engine): void;
   view(out: Surface): void;
   readonly size: { readonly w: number; readonly h: number };
   onResize?(w: number, h: number): void;
@@ -271,6 +275,7 @@ export function createEngine(opts: EngineOptions): Engine {
   let last = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let scratch = new Uint8Array(256);
+  let api!: Engine;
 
   function arm(delay: number): void {
     timer = setTimeout(wake, delay);
@@ -286,7 +291,7 @@ export function createEngine(opts: EngineOptions): Engine {
     if (acc > cap) acc = cap;
     let ran = 0;
     while (phase === "running" && acc >= step && ran < maxTicks) {
-      app.tick(queue);
+      app.tick(queue, api);
       queue.clear();
       tickCount = (tickCount + 1) >>> 0;
       acc -= step;
@@ -305,7 +310,7 @@ export function createEngine(opts: EngineOptions): Engine {
     timer = undefined;
   }
 
-  return {
+  api = {
     start() {
       if (phase !== "idle") return;
       phase = "running";
@@ -341,7 +346,8 @@ export function createEngine(opts: EngineOptions): Engine {
         scratch = new Uint8Array(n);
         n = app.snapshot(scratch);
       }
-      if (n < 0 || n > scratch.length) throw new Error("app snapshot length is invalid");
+      if (n < 0 || n > scratch.length)
+        throw new Error("app snapshot length is invalid");
       const out = new Uint8Array(SNAPSHOT_HEADER + n);
       out[0] = SNAPSHOT_VERSION;
       writeU32(out, 1, tickCount);
@@ -356,6 +362,7 @@ export function createEngine(opts: EngineOptions): Engine {
       return phase === "running";
     },
   };
+  return api;
 }
 
 function clampDim(pref: number, host: number): number {
@@ -371,7 +378,8 @@ function loadSnapshot(blob: Uint8Array, app: App): number {
   }
   const tick = readU32(blob, 1);
   const len = readU32(blob, 5);
-  if (len > blob.length - SNAPSHOT_HEADER) throw new Error("truncated snapshot");
+  if (len > blob.length - SNAPSHOT_HEADER)
+    throw new Error("truncated snapshot");
   app.hydrate(blob, SNAPSHOT_HEADER, len);
   return tick;
 }

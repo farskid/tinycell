@@ -2,7 +2,13 @@
 // No SIGINT handler and no process.exit. Ctrl-C arrives as byte 0x03 because
 // setRawMode(true) clears ISIG.
 import type { ReadStream } from "node:tty";
-import { charEvent, keyEvent, Key, type InputQueue, type InputSource } from "./engine.ts";
+import {
+  charEvent,
+  keyEvent,
+  Key,
+  type InputQueue,
+  type InputSource,
+} from "./engine.ts";
 
 interface TtyStream {
   isTTY?: boolean;
@@ -142,7 +148,8 @@ export function createTTY(stream: ReadStream | TtyStream): InputSource {
       function onData(chunk: Uint8Array | string): void {
         if (done) return;
         if (typeof chunk === "string") {
-          for (let i = 0; i < chunk.length; i++) parseByte(chunk.charCodeAt(i) & 0xff);
+          for (let i = 0; i < chunk.length; i++)
+            parseByte(chunk.charCodeAt(i) & 0xff);
           return;
         }
         for (let i = 0; i < chunk.length; i++) parseByte(chunk[i]!);

@@ -26,19 +26,41 @@ const ENTER_ALT = text.encode("\x1b[?1049h\x1b[?25l\x1b[2J\x1b[H");
 const LEAVE_ALT = text.encode("\x1b[0m\x1b[?25h\x1b[?1049l");
 const CLEAR = text.encode("\x1b[2J\x1b[H");
 
-const FG_CODE = [39, 30, 31, 32, 33, 34, 35, 36, 37, 90, 91, 92, 93, 94, 95, 96, 97];
-const BG_CODE = [49, 40, 41, 42, 43, 44, 45, 46, 47, 100, 101, 102, 103, 104, 105, 106, 107];
+const FG_CODE = [
+  39, 30, 31, 32, 33, 34, 35, 36, 37, 90, 91, 92, 93, 94, 95, 96, 97,
+];
+const BG_CODE = [
+  49, 40, 41, 42, 43, 44, 45, 46, 47, 100, 101, 102, 103, 104, 105, 106, 107,
+];
 
-export function createANSIPainter(stream: WriteStream): Painter;
-export function createANSIPainter(stream: AnsiStream): Painter;
-export function createANSIPainter(stream: WriteStream | AnsiStream): Painter {
+export interface ANSIPainterOptions {
+  /** Terminal columns per logical cell. 2 ≈ square glyphs. */
+  cellW?: number;
+}
+
+export function createANSIPainter(
+  stream: WriteStream,
+  opts?: ANSIPainterOptions,
+): Painter;
+export function createANSIPainter(
+  stream: AnsiStream,
+  opts?: ANSIPainterOptions,
+): Painter;
+export function createANSIPainter(
+  stream: WriteStream | AnsiStream,
+  opts?: ANSIPainterOptions,
+): Painter {
   const out = stream as AnsiStream;
-  if (out.isTTY !== true) throw new Error("createANSIPainter requires a TTY stream");
-  return new ANSIPainter(out);
+  if (out.isTTY !== true)
+    throw new Error("createANSIPainter requires a TTY stream");
+  const cellW = opts?.cellW ?? 1;
+  if (!(cellW > 0)) throw new Error("cellW must be > 0");
+  return new ANSIPainter(out, cellW | 0);
 }
 
 class ANSIPainter implements Painter {
   private readonly stream: AnsiStream;
+  private readonly cellW: number;
   private readonly host = { w: 80, h: 24 };
   private readonly listeners: Array<(w: number, h: number) => void> = [];
   private readonly onHost: () => void;
@@ -54,12 +76,13 @@ class ANSIPainter implements Painter {
   private lastBg = -1;
   private lastAttr = -1;
 
-  constructor(stream: AnsiStream) {
+  constructor(stream: AnsiStream, cellW: number) {
     this.stream = stream;
-    this.host.w = dim(stream.columns, 80);
+    this.cellW = cellW;
+    this.host.w = cols(stream.columns, 80, cellW);
     this.host.h = dim(stream.rows, 24);
     this.onHost = () => {
-      const w = dim(stream.columns, this.host.w);
+      const w = cols(stream.columns, this.host.w * this.cellW, this.cellW);
       const h = dim(stream.rows, this.host.h);
       if (w === this.host.w && h === this.host.h) return;
       this.host.w = w;
@@ -86,7 +109,8 @@ class ANSIPainter implements Painter {
     if (this.disposed) return;
     const ww = w > 0 ? w | 0 : 0;
     const hh = h > 0 ? h | 0 : 0;
-    if (this.bw === ww && this.bh === hh && this.back.length === ww * hh) return;
+    if (this.bw === ww && this.bh === hh && this.back.length === ww * hh)
+      return;
     this.bw = ww;
     this.bh = hh;
     this.back = new Uint32Array(ww * hh);
@@ -113,21 +137,23 @@ class ANSIPainter implements Painter {
           x++;
           continue;
         }
-        this.cup(y + 1, x + 1);
+        this.cup(y + 1, x * this.cellW + 1);
         while (x < width && cells[row + x] !== back[row + x]) {
           const cell = cells[row + x]!;
           const fg = cellFg(cell);
           const bg = cellBg(cell);
           const attr = cellAttrs(cell);
-          if (fg !== this.lastFg || bg !== this.lastBg || attr !== this.lastAttr) {
+          if (
+            fg !== this.lastFg ||
+            bg !== this.lastBg ||
+            attr !== this.lastAttr
+          ) {
             this.sgr(fg, bg, attr);
             this.lastFg = fg;
             this.lastBg = bg;
             this.lastAttr = attr;
           }
-          let ch = cellChar(cell);
-          if (ch < 0x20 || ch > 0x7e) ch = 0x3f;
-          this.put(ch);
+          this.putCell(cellChar(cell));
           x++;
         }
       }
@@ -163,6 +189,50 @@ class ANSIPainter implements Painter {
 
   private put(b: number): void {
     this.out[this.n++] = b;
+  }
+
+  private putCell(ch: number): void {
+    const a = ch & 0xff;
+    const b = (ch >>> 8) & 0xff;
+    if (
+      this.cellW >= 2 &&
+      ch > 0x7e &&
+      a >= 0x20 &&
+      a <= 0x7e &&
+      b >= 0x20 &&
+      b <= 0x7e
+    ) {
+      this.put(a);
+      this.put(b);
+      for (let k = 2; k < this.cellW; k++) this.put(0x20);
+      return;
+    }
+    this.putGlyph(ch);
+    if (fullwidth(ch)) return;
+    for (let k = 1; k < this.cellW; k++) this.put(0x20);
+  }
+
+  private putGlyph(ch: number): void {
+    if (ch < 0x20) {
+      this.put(0x3f);
+      return;
+    }
+    if (ch <= 0x7e) {
+      this.put(ch);
+      return;
+    }
+    if (ch <= 0x7ff) {
+      this.put(0xc0 | (ch >> 6));
+      this.put(0x80 | (ch & 0x3f));
+      return;
+    }
+    if (ch <= 0xffff) {
+      this.put(0xe0 | (ch >> 12));
+      this.put(0x80 | ((ch >> 6) & 0x3f));
+      this.put(0x80 | (ch & 0x3f));
+      return;
+    }
+    this.put(0x3f);
   }
 
   private writeDec(value: number): void {
@@ -204,9 +274,30 @@ class ANSIPainter implements Painter {
     if (attr & 2) this.param(2);
     if (attr & 4) this.param(4);
     if (attr & 8) this.param(7);
-    if (fg !== Color.Default) this.param(FG_CODE[fg] ?? 39);
-    if (bg !== Color.Default) this.param(BG_CODE[bg] ?? 49);
+    if (fg !== Color.Default) this.emitChannel(38, fg, FG_CODE, 39);
+    if (bg !== Color.Default) this.emitChannel(48, bg, BG_CODE, 49);
     this.put(0x6d);
+  }
+
+  private emitChannel(
+    kind: number,
+    color: number,
+    codes: number[],
+    fallback: number,
+  ): void {
+    const p = pinnedRgb(color);
+    if (p) {
+      this.param(kind);
+      this.param(5);
+      this.param(p.n256);
+      this.param(kind);
+      this.param(2);
+      this.param(p.r);
+      this.param(p.g);
+      this.param(p.b);
+      return;
+    }
+    this.param(codes[color] ?? fallback);
   }
 
   private param(n: number): void {
@@ -215,6 +306,28 @@ class ANSIPainter implements Painter {
   }
 }
 
+function fullwidth(ch: number): boolean {
+  return ch >= 0xff01 && ch <= 0xff60;
+}
+
+function pinnedRgb(
+  color: number,
+): { n256: number; r: number; g: number; b: number } | null {
+  // Theme slots for these three collapse in Warp/Ghostty. Pin RGB.
+  if (color === Color.White) return { n256: 251, r: 204, g: 204, b: 198 };
+  if (color === Color.BrightWhite) return { n256: 254, r: 232, g: 232, b: 226 };
+  if (color === Color.BrightBlack) return { n256: 244, r: 128, g: 128, b: 128 };
+  return null;
+}
+
 function dim(value: number | undefined, fallback: number): number {
   return typeof value === "number" && value > 0 ? Math.floor(value) : fallback;
+}
+
+function cols(
+  value: number | undefined,
+  fallback: number,
+  cellW: number,
+): number {
+  return (dim(value, fallback) / cellW) | 0;
 }

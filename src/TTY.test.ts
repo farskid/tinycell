@@ -121,7 +121,15 @@ test("Ctrl-C byte, enter, tab, backspace, and space", () => {
     stream.push([0x03, 0x0d, 0x0a, 0x09, 0x7f, 0x08, 0x20]);
     assert.deepEqual(
       [0, 1, 2, 3, 4, 5, 6].map((i) => keyOf(queue.at(i))),
-      [Key.CtrlC, Key.Enter, Key.Enter, Key.Tab, Key.Backspace, Key.Backspace, Key.Space],
+      [
+        Key.CtrlC,
+        Key.Enter,
+        Key.Enter,
+        Key.Tab,
+        Key.Backspace,
+        Key.Backspace,
+        Key.Space,
+      ],
     );
   } finally {
     detach();

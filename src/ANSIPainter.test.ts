@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createANSIPainter } from "./ANSIPainter.ts";
-import { Color, createEngine, EMPTY_CELL, packCell, Surface, type Painter } from "./engine.ts";
+import {
+  Color,
+  createEngine,
+  EMPTY_CELL,
+  packCell,
+  Surface,
+  type Painter,
+} from "./engine.ts";
 
 function fakeOut() {
   const chunks: Uint8Array[] = [];
@@ -42,7 +49,10 @@ function latin1(bytes: Uint8Array): string {
 }
 
 test("createANSIPainter rejects a non-TTY and accepts stdout's type", () => {
-  assert.throws(() => createANSIPainter({ isTTY: false, write: () => true }), /TTY/);
+  assert.throws(
+    () => createANSIPainter({ isTTY: false, write: () => true }),
+    /TTY/,
+  );
   const typed: (stream: typeof process.stdout) => Painter = createANSIPainter;
   assert.equal(typeof typed, "function");
 });
@@ -98,6 +108,72 @@ test("adjacent changes share one cursor move, and color is a 16-color SGR", () =
   assert.equal(latin1(colored.chunks.at(-1)!), "\x1b[1;1H\x1b[0;31mZ");
   painter.dispose();
   painter2.dispose();
+});
+
+test("cellW 2 pads a glyph to two columns and reports half the columns", () => {
+  const out = fakeOut();
+  const painter = createANSIPainter(out.stream, { cellW: 2 });
+  assert.equal(painter.size.w, 40);
+  const surface = new Surface(2, 1);
+  surface.fill(EMPTY_CELL);
+  painter.resize(2, 1);
+  surface.set(1, 0, packCell(0x41));
+  painter.paint(surface);
+  assert.equal(latin1(out.chunks.at(-1)!), "\x1b[1;3H\x1b[0mA ");
+  painter.dispose();
+});
+
+test("cellW 2 emits an ASCII pair packed in the 16-bit char", () => {
+  const out = fakeOut();
+  const painter = createANSIPainter(out.stream, { cellW: 2 });
+  const surface = new Surface(1, 1);
+  surface.fill(EMPTY_CELL);
+  painter.resize(1, 1);
+  surface.set(0, 0, packCell(0x3a20));
+  painter.paint(surface);
+  assert.equal(latin1(out.chunks.at(-1)!), "\x1b[1;1H\x1b[0m :");
+  painter.dispose();
+});
+
+test("cellW 2 does not pad a fullwidth glyph", () => {
+  const out = fakeOut();
+  const painter = createANSIPainter(out.stream, { cellW: 2 });
+  const surface = new Surface(1, 1);
+  surface.fill(EMPTY_CELL);
+  painter.resize(1, 1);
+  surface.set(0, 0, packCell(0xff5c));
+  painter.paint(surface);
+  assert.equal(latin1(out.chunks.at(-1)!), "\x1b[1;1H\x1b[0m\xef\xbd\x9c");
+  painter.dispose();
+});
+
+test("BMP glyphs emit UTF-8", () => {
+  const out = fakeOut();
+  const painter = createANSIPainter(out.stream);
+  const surface = new Surface(1, 1);
+  surface.fill(EMPTY_CELL);
+  painter.resize(1, 1);
+  surface.set(0, 0, packCell(0x25b6));
+  painter.paint(surface);
+  assert.equal(latin1(out.chunks.at(-1)!), "\x1b[1;1H\x1b[0m\xe2\x96\xb6");
+  painter.dispose();
+});
+
+test("theme-fragile backgrounds pin 256 + truecolor", () => {
+  const out = fakeOut();
+  const painter = createANSIPainter(out.stream);
+  const surface = new Surface(3, 1);
+  surface.fill(EMPTY_CELL);
+  painter.resize(3, 1);
+  surface.set(0, 0, packCell(0x20, Color.Default, Color.BrightBlack));
+  surface.set(1, 0, packCell(0x20, Color.Default, Color.White));
+  surface.set(2, 0, packCell(0x20, Color.Default, Color.BrightWhite));
+  painter.paint(surface);
+  assert.equal(
+    latin1(out.chunks.at(-1)!),
+    "\x1b[1;1H\x1b[0;48;5;244;48;2;128;128;128m \x1b[0;48;5;251;48;2;204;204;198m \x1b[0;48;5;254;48;2;232;232;226m ",
+  );
+  painter.dispose();
 });
 
 test("ready stays false until stdout drains", () => {
