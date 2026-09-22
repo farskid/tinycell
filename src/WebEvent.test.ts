@@ -17,35 +17,58 @@ interface Press {
 }
 
 function fakeKeys() {
-  const listeners = new Set<(ev: Press & { preventDefault(): void }) => void>();
+  const buckets = new Map<
+    string,
+    Set<(ev: Press & { preventDefault(): void }) => void>
+  >();
   let prevented = 0;
+
+  function bucket(type: string) {
+    let set = buckets.get(type);
+    if (!set) {
+      set = new Set();
+      buckets.set(type, set);
+    }
+    return set;
+  }
+
+  function dispatch(type: string, ev: Press) {
+    const event = {
+      ...ev,
+      preventDefault() {
+        prevented++;
+      },
+    };
+    for (const cb of bucket(type)) cb(event);
+  }
+
   const target = {
     addEventListener(
       type: string,
       cb: (ev: Press & { preventDefault(): void }) => void,
     ) {
-      if (type === "keydown") listeners.add(cb);
+      bucket(type).add(cb);
     },
     removeEventListener(
       type: string,
       cb: (ev: Press & { preventDefault(): void }) => void,
     ) {
-      if (type === "keydown") listeners.delete(cb);
+      bucket(type).delete(cb);
     },
     press(ev: Press) {
-      const event = {
-        ...ev,
-        preventDefault() {
-          prevented++;
-        },
-      };
-      for (const cb of listeners) cb(event);
+      dispatch("keydown", ev);
+    },
+    release(ev: Press) {
+      dispatch("keyup", ev);
+    },
+    blur() {
+      dispatch("blur", { key: "" });
     },
   };
   return {
     target,
     get listening() {
-      return listeners.size;
+      return bucket("keydown").size;
     },
     get prevented() {
       return prevented;
@@ -112,6 +135,45 @@ test("printable ASCII is a char event and modifiers are not", () => {
     assert.equal(keyOf(queue.at(0)), 0);
   } finally {
     detach();
+  }
+});
+
+test("hold repeats the newest arrow until keyup or blur", () => {
+  const keys = fakeKeys();
+  const queue = new InputQueue();
+  const frames: Array<(time: number) => void> = [];
+  const prevR = globalThis.requestAnimationFrame;
+  const prevC = globalThis.cancelAnimationFrame;
+  globalThis.requestAnimationFrame = (cb) => {
+    frames.push(cb);
+    return frames.length;
+  };
+  globalThis.cancelAnimationFrame = () => {};
+  const detach = createWebEvent(keys.target, {
+    hold: [Key.Left, Key.Right],
+  }).attach(queue);
+  try {
+    keys.target.press({ key: " " });
+    assert.equal(frames.length, 0);
+    keys.target.press({ key: "ArrowLeft" });
+    queue.clear();
+    frames.shift()?.(0);
+    assert.equal(keyOf(queue.at(0)), Key.Left);
+    queue.clear();
+    keys.target.press({ key: "ArrowRight" });
+    frames.shift()?.(0);
+    assert.equal(keyOf(queue.at(queue.length - 1)), Key.Right);
+    keys.target.release({ key: "ArrowRight" });
+    frames.shift()?.(0);
+    assert.equal(keyOf(queue.at(queue.length - 1)), Key.Left);
+    keys.target.blur();
+    const n = queue.length;
+    for (const cb of frames.splice(0)) cb(0);
+    assert.equal(queue.length, n);
+  } finally {
+    detach();
+    globalThis.requestAnimationFrame = prevR;
+    globalThis.cancelAnimationFrame = prevC;
   }
 });
 

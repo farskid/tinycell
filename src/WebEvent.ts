@@ -15,24 +15,76 @@ interface KeyEvent {
   preventDefault?(): void;
 }
 
+type KeyName = "keydown" | "keyup" | "blur";
+
 interface KeyTarget {
-  addEventListener(type: "keydown", listener: (ev: KeyEvent) => void): void;
-  removeEventListener(type: "keydown", listener: (ev: KeyEvent) => void): void;
+  addEventListener(type: KeyName, listener: (ev: KeyEvent) => void): void;
+  removeEventListener(type: KeyName, listener: (ev: KeyEvent) => void): void;
 }
 
-export function createWebEvent(target: Window): InputSource;
-export function createWebEvent(target: EventTarget): InputSource;
-export function createWebEvent(target: KeyTarget): InputSource;
+export interface WebEventOptions {
+  /** Push these keys every frame while held. OS key repeat is too slow for movement. */
+  hold?: readonly Key[];
+}
+
+export function createWebEvent(
+  target: Window,
+  opts?: WebEventOptions,
+): InputSource;
+export function createWebEvent(
+  target: EventTarget,
+  opts?: WebEventOptions,
+): InputSource;
+export function createWebEvent(
+  target: KeyTarget,
+  opts?: WebEventOptions,
+): InputSource;
 export function createWebEvent(
   target: Window | EventTarget | KeyTarget,
+  opts?: WebEventOptions,
 ): InputSource {
   const el = target as KeyTarget;
+  const hold = new Set(opts?.hold ?? []);
   let activeDetach: (() => void) | null = null;
 
   return {
     attach(queue: InputQueue): () => void {
       activeDetach?.();
       let done = false;
+      const held: Key[] = [];
+      let frame = 0;
+
+      function cancel(): void {
+        if (frame === 0) return;
+        cancelAnimationFrame(frame);
+        frame = 0;
+      }
+
+      function pump(): void {
+        frame = 0;
+        if (done || held.length === 0) return;
+        queue.push(keyEvent(held[held.length - 1]!));
+        arm();
+      }
+
+      function arm(): void {
+        if (done || frame !== 0 || held.length === 0) return;
+        if (typeof requestAnimationFrame !== "function") return;
+        frame = requestAnimationFrame(pump);
+      }
+
+      function track(key: Key, down: boolean): void {
+        if (!hold.has(key)) return;
+        const i = held.indexOf(key);
+        if (down) {
+          if (i >= 0) held.splice(i, 1);
+          held.push(key);
+          arm();
+          return;
+        }
+        if (i >= 0) held.splice(i, 1);
+        if (held.length === 0) cancel();
+      }
 
       function onKey(ev: KeyEvent): void {
         if (done) return;
@@ -40,6 +92,7 @@ export function createWebEvent(
         if (key !== 0) {
           ev.preventDefault?.();
           queue.push(keyEvent(key));
+          track(key, true);
           return;
         }
         const ch = printable(ev);
@@ -48,13 +101,34 @@ export function createWebEvent(
         queue.push(charEvent(ch));
       }
 
+      function onUp(ev: KeyEvent): void {
+        if (done) return;
+        const key = mapped(ev);
+        if (key !== 0) track(key, false);
+      }
+
+      function onBlur(): void {
+        held.length = 0;
+        cancel();
+      }
+
       el.addEventListener("keydown", onKey);
+      if (hold.size > 0) {
+        el.addEventListener("keyup", onUp);
+        el.addEventListener("blur", onBlur);
+      }
 
       const detach = (): void => {
         if (done) return;
         done = true;
         if (activeDetach === detach) activeDetach = null;
+        held.length = 0;
+        cancel();
         el.removeEventListener("keydown", onKey);
+        if (hold.size > 0) {
+          el.removeEventListener("keyup", onUp);
+          el.removeEventListener("blur", onBlur);
+        }
       };
       activeDetach = detach;
       return detach;
