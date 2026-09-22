@@ -1,4 +1,4 @@
-# TinyGM
+# TinyCell
 
 Host-blind fixed-timestep cell engine. One `App` owns rules and pixels. The host only paints, feeds keys, and stores bytes.
 
@@ -91,7 +91,7 @@ npm run dev                          # Snake in the browser
 npx tsx games/snake/SnakeTerminal.ts # Snake in the terminal
 ```
 
-Web persist: `localStorage`. Terminal persist: `~/.tinygm/snake`.
+Web persist: `localStorage`. Terminal persist: `~/.tinycell/snake`.
 
 ## Wire an App
 
