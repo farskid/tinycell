@@ -1,0 +1,43 @@
+Demo games to build
+
+Done
+[x] Snake
+
+Turn grid
+[ ] 2048
+[ ] Sokoban
+[ ] Tic-tac-toe
+[ ] Connect Four
+[ ] Chess
+[ ] Checkers
+[ ] Sudoku
+
+Tick grid
+[ ] Tetris
+[ ] Pac-Man
+[ ] Tron
+[ ] Frogger
+[ ] Boulder Dash
+[ ] Space Invaders
+[ ] Breakout
+[ ] Pong
+
+Typing
+[ ] Hangman
+[ ] Wordle-style
+[ ] Text adventure
+
+Cellular
+[ ] Game of Life
+[ ] Minesweeper (keyboard cursor)
+
+Roguelike
+[ ] One-actor dungeon crawl
+
+Stretch (cell motion, still on this engine)
+[ ] Flappy
+[ ] Asteroids
+[ ] Missile Command
+[ ] Match-3
+[ ] Tower defense
+[ ] Local two-player (one keyboard)
