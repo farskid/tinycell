@@ -6,7 +6,7 @@ import { createTTY } from "../../src/TTY.ts";
 import { bindFilePersist, createFilePersist } from "../FilePersist.ts";
 import { createGame2048App } from "./Game2048.ts";
 
-const persist = createFilePersist(join(homedir(), ".tinygm", "2048"));
+const persist = createFilePersist(join(homedir(), ".tinycell", "2048"));
 const opts = {
   app: createGame2048App(),
   painter: createANSIPainter(process.stdout, { cellW: 2 }),

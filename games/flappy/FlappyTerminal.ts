@@ -6,7 +6,7 @@ import { createTTY } from "../../src/TTY.ts";
 import { bindFilePersist, createFilePersist } from "../FilePersist.ts";
 import { createFlappyApp } from "./Flappy.ts";
 
-const persist = createFilePersist(join(homedir(), ".tinygm", "flappy"));
+const persist = createFilePersist(join(homedir(), ".tinycell", "flappy"));
 const opts = {
   app: createFlappyApp(),
   painter: createANSIPainter(process.stdout, { cellW: 2 }),

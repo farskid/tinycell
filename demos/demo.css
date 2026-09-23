@@ -41,20 +41,40 @@ body {
 .top {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 24px;
   margin-bottom: 28px;
 }
 
-a.back {
+.marks {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+
+.back {
   color: var(--muted);
   font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+a.back {
   text-decoration: none;
 }
 
-a.back:hover {
+a.back.gh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+a.back.gh svg {
+  display: block;
+}
+
+a.back:hover,
+a.back:focus-visible {
   color: var(--ink);
 }
 
