@@ -1,7 +1,26 @@
 {
   "name": "tinycell",
   "version": "0.0.1",
-  "private": true,
+  "description": "Host-blind fixed-timestep cell engine. One App owns the rules and the grid; the host only paints, feeds keys, and stores bytes.",
+  "author": "Farzad Yousefzadeh <farskid@gmail.com> (https://farzadyz.me)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/farskid/tinycell.git"
+  },
+  "bugs": {
+    "url": "https://github.com/farskid/tinycell/issues"
+  },
+  "homepage": "https://github.com/farskid/tinycell#readme",
+  "keywords": [
+    "game",
+    "engine",
+    "grid",
+    "cells",
+    "terminal",
+    "ansi",
+    "canvas"
+  ],
   "type": "module",
   "engines": {
     "node": ">=22"
