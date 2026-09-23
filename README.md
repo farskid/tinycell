@@ -40,26 +40,6 @@ A cell is one `u32`: attributes, background, foreground, and a character.
 
 The picture can still move. Flappy stores a fractional bird and scrolling pipes; 2048 slides tiles over several ticks. Both round onto cells before `view`. The screen never learns about the fractions.
 
-## Games
-
-GitHub can only show a still. The same games are running at [farskid.github.io/tinycell](https://farskid.github.io/tinycell/). Each demo page is the live game next to the `App` and both hosts, so you can read the rules and play them.
-
-[![Space Invaders: a formation of colored cells, four bunkers, and a ship](demos/invaders/demo.png)](https://farskid.github.io/tinycell/demos/invaders/)
-
-[Invaders](https://farskid.github.io/tinycell/demos/invaders/). Enter starts, arrows move, space fires. Aliens, bunkers, and the ship are cells on a 48×34 grid.
-
-[![Snake on a checkerboard, with a feature menu under the board](demos/snake/demo.png)](https://farskid.github.io/tinycell/demos/snake/)
-
-[Snake](https://farskid.github.io/tinycell/demos/snake/). Arrows start. The menu under the board is cells too: walls, food, rocks, speed, a laser. Those are rule switches inside the game, not engine features.
-
-[![2048: numbered tiles on a 4×4 board](demos/2048/demo.png)](https://farskid.github.io/tinycell/demos/2048/)
-
-[2048](https://farskid.github.io/tinycell/demos/2048/). Arrows or a swipe slide the tiles. Enter retries.
-
-[![Flappy: a bird between green pipes](demos/flappy/demo.png)](https://farskid.github.io/tinycell/demos/flappy/)
-
-[Flappy](https://farskid.github.io/tinycell/demos/flappy/). Space flaps. One bird and scrolling columns, still drawn as cells.
-
 ## API
 
 All of this lives in [`src/engine.ts`](src/engine.ts). A game implements `App`. A host implements `Painter` and any number of `InputSource`s. `createEngine` is the clock that ties them together.
@@ -74,7 +54,7 @@ function createEngine(opts: {
   tickHz?: number; // default 20, must be > 0
   maxTicksPerWake?: number; // default 4, at least 1
   resume?: Uint8Array;
-}): Engine
+}): Engine;
 ```
 
 `inputs` attach as soon as the engine exists, before `start`. `tickHz` becomes a step of `max(1, round(1000 / hz))` milliseconds. Each wake spends the elapsed time in steps of that size, and stops after `maxTicksPerWake` ticks. Time past that cap is dropped. `resume` is an earlier `snapshot()` blob. How that brings a game back is in [Snapshot](#snapshot).
@@ -151,23 +131,23 @@ interface Painter {
 ### Cells
 
 ```ts
-function packCell(ch: number, fg?: Color, bg?: Color, attrs?: Attr): Cell
-function cellChar(cell: Cell): number
-function cellFg(cell: Cell): number
-function cellBg(cell: Cell): number
-function cellAttrs(cell: Cell): number
+function packCell(ch: number, fg?: Color, bg?: Color, attrs?: Attr): Cell;
+function cellChar(cell: Cell): number;
+function cellFg(cell: Cell): number;
+function cellBg(cell: Cell): number;
+function cellAttrs(cell: Cell): number;
 ```
 
 `Cell` is a `number` holding the `u32` from the layout above. `EMPTY_CELL` is a space. `Color` runs `Default`, `Black`, `Red`, `Green`, `Yellow`, `Blue`, `Magenta`, `Cyan`, `White`, then the same names with a `Bright` prefix. `Attr` is a flag in the low nibble: `Bold`, `Dim`, `Underline`, `Inverse`. Combine flags with `|`.
 
 ```ts
 class Surface {
-  readonly w: number
-  readonly h: number
-  readonly cells: Uint32Array
-  set(x: number, y: number, cell: Cell): void
-  fill(cell: Cell): void
-  writeText(x: number, y: number, s: string, fg?: Color, bg?: Color): void
+  readonly w: number;
+  readonly h: number;
+  readonly cells: Uint32Array;
+  set(x: number, y: number, cell: Cell): void;
+  fill(cell: Cell): void;
+  writeText(x: number, y: number, s: string, fg?: Color, bg?: Color): void;
 }
 ```
 
@@ -177,17 +157,37 @@ class Surface {
 
 ```ts
 class InputQueue {
-  push(ev: number): void
-  readonly length: number
-  at(i: number): number
-  clear(): void
+  push(ev: number): void;
+  readonly length: number;
+  at(i: number): number;
+  clear(): void;
 }
 
 interface InputSource {
-  attach(queue: InputQueue): () => void
+  attach(queue: InputQueue): () => void;
 }
 ```
 
 The queue holds 64 events. A push past that drops the oldest. `at` returns `0` past the end. The engine clears the queue after every tick. `attach` starts pushing into that queue and returns the function `stop` will call.
 
 An event is `[kind:8][code:24]`. `keyEvent(key)` and `charEvent(codepoint)` pack one. `keyOf` returns the `Key` for a key event and `0` for anything else, including a character. `Key` is `Up`, `Down`, `Left`, `Right`, `Enter`, `Escape`, `Space`, `Tab`, `Backspace`, `CtrlC`. A game walks `input` with `keyOf` and never sees the host that pushed the event.
+
+## Demo Games
+
+The same games are running at [farskid.github.io/tinycell](https://farskid.github.io/tinycell/). Each demo page is the live game next to the `App` and both hosts, so you can read the rules and play them.
+
+[![Space Invaders: a formation of colored cells, four bunkers, and a ship](demos/invaders/demo.png)](https://farskid.github.io/tinycell/demos/invaders/)
+
+[Invaders](https://farskid.github.io/tinycell/demos/invaders/). Enter starts, arrows move, space fires. Aliens, bunkers, and the ship are cells on a 48×34 grid.
+
+[![Snake on a checkerboard, with a feature menu under the board](demos/snake/demo.png)](https://farskid.github.io/tinycell/demos/snake/)
+
+[Snake](https://farskid.github.io/tinycell/demos/snake/). Arrows start. The menu under the board is cells too: walls, food, rocks, speed, a laser. Those are rule switches inside the game, not engine features.
+
+[![2048: numbered tiles on a 4×4 board](demos/2048/demo.png)](https://farskid.github.io/tinycell/demos/2048/)
+
+[2048](https://farskid.github.io/tinycell/demos/2048/). Arrows or a swipe slide the tiles. Enter retries.
+
+[![Flappy: a bird between green pipes](demos/flappy/demo.png)](https://farskid.github.io/tinycell/demos/flappy/)
+
+[Flappy](https://farskid.github.io/tinycell/demos/flappy/). Space flaps. One bird and scrolling columns, still drawn as cells.
