@@ -241,9 +241,31 @@ kbd {
 }
 
 .tab-path {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: none;
+  text-decoration: none;
+}
+
+.tab-path svg {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  position: relative;
+  top: 1px;
+}
+
+a.tab-path:hover span,
+a.tab-path:focus-visible span {
+  text-decoration: underline;
 }
 
 .sample {

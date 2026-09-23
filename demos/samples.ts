@@ -11,8 +11,12 @@ export function mountSamples(root: HTMLElement, samples: readonly Sample[]): voi
   const tabs = document.createElement("div");
   tabs.className = "tabs";
   tabs.setAttribute("role", "tablist");
-  const path = document.createElement("span");
+  const path = document.createElement("a");
   path.className = "tab-path";
+  path.target = "_blank";
+  path.rel = "noreferrer";
+  const fileName = document.createElement("span");
+  path.append(fileName, externalIcon());
   const bar = document.createElement("div");
   bar.className = "tabbar";
   bar.append(tabs, path);
@@ -28,7 +32,9 @@ export function mountSamples(root: HTMLElement, samples: readonly Sample[]): voi
       buttons[i]!.tabIndex = on ? 0 : -1;
       blocks[i]!.hidden = !on;
     }
-    path.textContent = samples[index]!.path;
+    const file = samples[index]!.path;
+    fileName.textContent = file;
+    path.href = `https://github.com/farskid/tinycell/blob/engine-core/${file}`;
   }
 
   samples.forEach((sample, i) => {
@@ -70,4 +76,16 @@ export function mountSamples(root: HTMLElement, samples: readonly Sample[]): voi
 
   select(0);
   root.append(bar, panels);
+}
+
+function externalIcon(): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 12 12");
+  svg.setAttribute("aria-hidden", "true");
+  const box = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  box.setAttribute("d", "M4.2 2.2H2.2v7.6h7.6V7.8");
+  const arrow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  arrow.setAttribute("d", "M6.2 2.2H9.8V5.8M9.6 2.4 5.2 6.8");
+  svg.append(box, arrow);
+  return svg;
 }

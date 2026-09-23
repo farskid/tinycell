@@ -148,63 +148,11 @@
 
   .poster {
     display: block;
+    width: 100%;
+    height: auto;
     border-radius: 10px;
-    background-color: #000;
-    background-repeat: no-repeat;
-  }
-
-  .poster.inv {
-    aspect-ratio: 768 / 544;
-    background-image:
-      repeating-linear-gradient(90deg, #c47ad4 0 18px, transparent 18px 32px),
-      repeating-linear-gradient(90deg, #3dbea6 0 18px, transparent 18px 32px),
-      repeating-linear-gradient(90deg, #3a78d0 0 18px, transparent 18px 32px),
-      repeating-linear-gradient(90deg, #6a9a4a 0 18px, transparent 18px 32px),
-      repeating-linear-gradient(90deg, #c4a15a 0 18px, transparent 18px 32px),
-      linear-gradient(#b9b9b4, #b9b9b4),
-      linear-gradient(#b9b9b4, #b9b9b4),
-      linear-gradient(#b9b9b4, #b9b9b4),
-      linear-gradient(#b9b9b4, #b9b9b4);
-    background-size:
-      72% 5%,
-      72% 5%,
-      72% 5%,
-      72% 5%,
-      72% 5%,
-      11% 7%,
-      11% 7%,
-      11% 7%,
-      11% 7%;
-    background-position:
-      center 18%,
-      center 28%,
-      center 38%,
-      center 48%,
-      center 58%,
-      14% 78%,
-      38% 78%,
-      62% 78%,
-      86% 78%;
-  }
-
-  .poster.snake {
-    aspect-ratio: 512 / 624;
-    background-image:
-      linear-gradient(#3ddc97, #3ddc97),
-      linear-gradient(#d23a3a, #d23a3a),
-      linear-gradient(#0c0b09, #0c0b09),
-      repeating-conic-gradient(#ccc6c6 0% 25%, #e8e8e2 0% 50%);
-    background-size:
-      14px 14px,
-      14px 14px,
-      100% 30%,
-      18px 18px;
-    background-position:
-      46% 42%,
-      78% 18%,
-      bottom,
-      0 0;
-    background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+    background: #000;
+    image-rendering: pixelated;
   }
 
   .keys {
@@ -257,21 +205,20 @@
 
   <h1>TinyCell</h1>
   <p class="lede">
-    The game is a grid of cells. <strong>tick</strong> changes them,
-    <strong>view</strong> writes them, and a host paints the diff. Same
-    <strong>App</strong> in the browser and in a terminal.
+    A TypeScript engine for games made of cells. <code>tick</code> updates the grid,
+    <code>view</code> draws it. One <code>App</code> runs on a canvas and in a terminal.
   </p>
 
   <section class="games">
     <a class="machine invaders" href="demos/invaders/">
       <span class="bar"><span><i class="dot"></i><b>Invaders</b></span><span>48×34</span></span>
-      <span class="poster inv"></span>
+      <img class="poster" src="demos/invaders/demo.png" alt="Space Invaders" width="1630" height="1160" />
       <span class="keys"><kbd>enter</kbd> start · <kbd>arrows</kbd> move · <kbd>space</kbd> fire</span>
     </a>
 
     <a class="machine" href="demos/snake/">
       <span class="bar"><span><i class="dot"></i><b>Snake</b></span><span>32×39</span></span>
-      <span class="poster snake"></span>
+      <img class="poster" src="demos/snake/demo.png" alt="Snake" width="1094" height="1286" />
       <span class="keys">
         <kbd>arrows</kbd> start · <kbd>tab</kbd> feat · <kbd>space</kbd> cycle · <kbd>enter</kbd> retry
       </span>
