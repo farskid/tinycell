@@ -28,6 +28,8 @@ export default defineConfig({
         main: resolve(root, "index.html"),
         snake: resolve(root, "games/snake/index.html"),
         invaders: resolve(root, "games/space-invaders/index.html"),
+        snakeDemo: resolve(root, "demos/snake/index.html"),
+        invadersDemo: resolve(root, "demos/invaders/index.html"),
       },
     },
   },

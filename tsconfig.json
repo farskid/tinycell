@@ -12,5 +12,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src/**/*.ts", "games/**/*.ts"]
+  "include": ["src/**/*.ts", "games/**/*.ts", "demos/**/*.ts"]
 }

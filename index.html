@@ -120,9 +120,14 @@
     text-transform: uppercase;
   }
 
-  .bar b {
+  .bar a {
     color: var(--ink);
     font-weight: 500;
+    text-decoration: none;
+  }
+
+  .bar a:hover {
+    color: var(--accent);
   }
 
   .dot {
@@ -245,7 +250,7 @@
 
   <section class="games">
     <article class="machine invaders">
-      <div class="bar"><span><i class="dot"></i><b>Invaders</b></span><span>48×34</span></div>
+      <div class="bar"><span><i class="dot"></i><a href="demos/invaders/">Invaders</a></span><span>48×34</span></div>
       <div class="screen" data-w="768" data-h="544">
         <iframe src="games/space-invaders/" title="Space Invaders" tabindex="0"></iframe>
         <button type="button" class="veil"><span>Play</span></button>
@@ -254,7 +259,7 @@
     </article>
 
     <article class="machine">
-      <div class="bar"><span><i class="dot"></i><b>Snake</b></span><span>32×39</span></div>
+      <div class="bar"><span><i class="dot"></i><a href="demos/snake/">Snake</a></span><span>32×39</span></div>
       <div class="screen" data-w="512" data-h="624">
         <iframe src="games/snake/" title="Snake" tabindex="0"></iframe>
         <button type="button" class="veil"><span>Play</span></button>
