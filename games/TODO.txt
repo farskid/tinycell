@@ -4,7 +4,7 @@ Done
 [x] Snake
 
 Turn grid
-[ ] 2048
+[x] 2048
 [ ] Sokoban
 [ ] Tic-tac-toe
 [ ] Connect Four
@@ -35,7 +35,7 @@ Roguelike
 [ ] One-actor dungeon crawl
 
 Stretch (cell motion, still on this engine)
-[ ] Flappy
+[x] Flappy
 [ ] Asteroids
 [ ] Missile Command
 [ ] Match-3

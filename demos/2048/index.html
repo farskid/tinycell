@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>2048 · TinyCell</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,500;6..72,560&display=swap"
+  rel="stylesheet" />
+<link rel="stylesheet" href="../demo.css" />
+
+<div class="wrap">
+  <div class="top">
+    <a class="back" href="../../">TinyCell</a>
+    <div class="back">Canvas · ANSI</div>
+  </div>
+  <h1>2048</h1>
+  <p class="lede">
+    One <code>createGame2048App</code>. Play it here. The tabs are the core,
+    the playback, the web host, and the terminal host.
+  </p>
+  <div class="layout">
+    <div class="stage">
+      <article class="machine g2048">
+        <div class="bar"><span><i class="dot"></i><b>2048</b></span><span>33×27</span></div>
+        <div class="screen" data-w="528" data-h="432">
+          <iframe src="../../games/2048/" title="2048" tabindex="0"></iframe>
+          <button type="button" class="veil"><span>Play</span></button>
+        </div>
+        <p class="keys"><kbd>swipe</kbd> or <kbd>arrows</kbd> slide · <kbd>enter</kbd> retry</p>
+      </article>
+    </div>
+    <div class="samples" id="samples"></div>
+  </div>
+</div>
+<script type="module" src="./main.ts"></script>

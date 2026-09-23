@@ -10,9 +10,11 @@
     "dev": "vite",
     "dev:snake": "vite --config games/snake/vite.config.ts",
     "dev:invaders": "vite --config games/space-invaders/vite.config.ts",
+    "dev:2048": "vite --config games/2048/vite.config.ts",
+    "dev:flappy": "vite --config games/flappy/vite.config.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --experimental-transform-types --test --test-concurrency=1 src/engine.test.ts src/ANSIPainter.test.ts src/TTY.test.ts src/CanvasPainter.test.ts src/WebEvent.test.ts games/space-invaders/SpaceInvaders.test.ts",
+    "test": "node --experimental-transform-types --test --test-concurrency=1 src/engine.test.ts src/ANSIPainter.test.ts src/TTY.test.ts src/CanvasPainter.test.ts src/WebEvent.test.ts src/WebSwipe.test.ts games/space-invaders/SpaceInvaders.test.ts games/flappy/Flappy.test.ts games/fx.test.ts games/2048/Game2048.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -17,6 +17,8 @@
     --bezel: #171512;
     --snake: #3ddc97;
     --invaders: #d392ff;
+    --g2048: #e7c07b;
+    --flappy: #ffe14a;
     font-family: "IBM Plex Mono", ui-monospace, monospace;
   }
 
@@ -85,9 +87,8 @@
 
   .games {
     display: grid;
-    grid-template-columns: 1.15fr 0.85fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 28px;
-    align-items: start;
     margin-top: 48px;
   }
 
@@ -102,6 +103,14 @@
 
   .machine.invaders {
     --accent: var(--invaders);
+  }
+
+  .machine.g2048 {
+    --accent: var(--g2048);
+  }
+
+  .machine.flappy {
+    --accent: var(--flappy);
   }
 
   a.machine {
@@ -150,6 +159,8 @@
     display: block;
     width: 100%;
     height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: contain;
     border-radius: 10px;
     background: #000;
     image-rendering: pixelated;
@@ -158,6 +169,7 @@
   .keys {
     display: block;
     margin: 12px 8px 0;
+    min-height: 3.2em;
     color: var(--muted);
     font-size: 12px;
     line-height: 1.6;
@@ -222,6 +234,45 @@
       <span class="keys">
         <kbd>arrows</kbd> start · <kbd>tab</kbd> feat · <kbd>space</kbd> cycle · <kbd>enter</kbd> retry
       </span>
+    </a>
+
+    <a class="machine g2048" href="demos/2048/">
+      <span class="bar"><span><i class="dot"></i><b>2048</b></span><span>33×27</span></span>
+      <svg class="poster" viewBox="0 0 33 27" role="img" aria-label="2048">
+        <rect width="33" height="27" fill="#000" />
+        <rect x="1" y="1" width="7" height="5" fill="#ccccc6" />
+        <rect x="9" y="1" width="7" height="5" fill="#e8e8e2" />
+        <rect x="17" y="1" width="7" height="5" fill="#808080" />
+        <rect x="25" y="1" width="7" height="5" fill="#aa5500" />
+        <rect x="1" y="7" width="7" height="5" fill="#808080" />
+        <rect x="9" y="7" width="7" height="5" fill="#ffff55" />
+        <rect x="17" y="7" width="7" height="5" fill="#aa0000" />
+        <rect x="25" y="7" width="7" height="5" fill="#808080" />
+        <rect x="1" y="13" width="7" height="5" fill="#ff5555" />
+        <rect x="9" y="13" width="7" height="5" fill="#808080" />
+        <rect x="17" y="13" width="7" height="5" fill="#00aa00" />
+        <rect x="25" y="13" width="7" height="5" fill="#55ff55" />
+        <rect x="1" y="19" width="7" height="5" fill="#808080" />
+        <rect x="9" y="19" width="7" height="5" fill="#00aaaa" />
+        <rect x="17" y="19" width="7" height="5" fill="#55ffff" />
+        <rect x="25" y="19" width="7" height="5" fill="#aa00aa" />
+      </svg>
+      <span class="keys"><kbd>arrows</kbd> slide · <kbd>enter</kbd> retry</span>
+    </a>
+
+    <a class="machine flappy" href="demos/flappy/">
+      <span class="bar"><span><i class="dot"></i><b>Flappy</b></span><span>40×24</span></span>
+      <svg class="poster" viewBox="0 0 40 24" role="img" aria-label="Flappy">
+        <rect width="40" height="24" fill="#0000aa" />
+        <rect x="26" width="3" height="5" fill="#00aa00" />
+        <rect x="26" y="4" width="3" height="1" fill="#55ff55" />
+        <rect x="26" y="14" width="3" height="1" fill="#55ff55" />
+        <rect x="26" y="15" width="3" height="7" fill="#00aa00" />
+        <rect y="22" width="40" height="1" fill="#55ff55" />
+        <rect y="23" width="40" height="1" fill="#00aa00" />
+        <rect x="7" y="9" width="1" height="1" fill="#ffff55" />
+      </svg>
+      <span class="keys"><kbd>space</kbd> flap</span>
     </a>
   </section>
 
