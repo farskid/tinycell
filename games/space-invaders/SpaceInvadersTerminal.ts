@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { createEngine } from "../../src/engine.ts";
 import { createANSIPainter } from "../../src/ANSIPainter.ts";
 import { createTTY } from "../../src/TTY.ts";
-import { bindFilePersist, createFilePersist } from "../snake/FilePersist.ts";
+import { bindFilePersist, createFilePersist } from "../FilePersist.ts";
 import { createSpaceInvadersApp } from "./SpaceInvaders.ts";
 
 const persist = createFilePersist(join(homedir(), ".tinygm", "invaders"));

@@ -520,11 +520,6 @@ function drawBoard(c: GameState, out: Surface): void {
   }
 }
 
-export interface Persist {
-  writePersistedState(bytes: Uint8Array): void;
-  readPersistedState(): Uint8Array | null;
-}
-
 const SAVE_VER = 1;
 
 function phaseCode(p: Phase): number {

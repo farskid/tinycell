@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { Engine } from "../../src/engine.ts";
+import type { Engine } from "../src/engine.ts";
 
 export function createFilePersist(path: string) {
   return {
