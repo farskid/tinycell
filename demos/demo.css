@@ -74,7 +74,7 @@ h1 {
 }
 
 .lede code,
-.sample-head span {
+.tab-path {
   color: var(--ink);
 }
 
@@ -200,27 +200,54 @@ kbd {
 }
 
 .samples {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
   min-width: 0;
 }
 
-.sample-head {
+.tabbar {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
   align-items: baseline;
-  margin-bottom: 8px;
+  gap: 16px;
+  border-bottom: 1px solid #2c2822;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tabs button {
+  margin: 0;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
   font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--muted);
+  cursor: pointer;
 }
 
-.sample-head b {
+.tabs button[aria-selected="true"] {
   color: var(--ink);
-  font-weight: 500;
+  border-bottom-color: var(--ink);
+}
+
+.tabs button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.tab-path {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.sample {
+  margin-top: 12px;
 }
 
 pre.code {

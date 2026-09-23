@@ -105,8 +105,20 @@
     --accent: var(--invaders);
   }
 
-  .machine.live {
+  a.machine {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  a.machine:hover,
+  a.machine:focus-visible {
     border-color: color-mix(in srgb, var(--accent) 70%, #2c2822);
+  }
+
+  a.machine:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
   }
 
   .bar {
@@ -120,14 +132,9 @@
     text-transform: uppercase;
   }
 
-  .bar a {
+  .bar b {
     color: var(--ink);
     font-weight: 500;
-    text-decoration: none;
-  }
-
-  .bar a:hover {
-    color: var(--accent);
   }
 
   .dot {
@@ -140,61 +147,69 @@
     vertical-align: 1px;
   }
 
-  .machine.live .dot {
-    background: var(--accent);
-  }
-
-  .screen {
-    position: relative;
-    width: 100%;
-    overflow: hidden;
-    background: #000;
+  .poster {
+    display: block;
     border-radius: 10px;
-    line-height: 0;
+    background-color: #000;
+    background-repeat: no-repeat;
   }
 
-  .screen iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
-    border: 0;
-    background: #000;
-    transform-origin: top left;
+  .poster.inv {
+    aspect-ratio: 768 / 544;
+    background-image:
+      repeating-linear-gradient(90deg, #c47ad4 0 18px, transparent 18px 32px),
+      repeating-linear-gradient(90deg, #3dbea6 0 18px, transparent 18px 32px),
+      repeating-linear-gradient(90deg, #3a78d0 0 18px, transparent 18px 32px),
+      repeating-linear-gradient(90deg, #6a9a4a 0 18px, transparent 18px 32px),
+      repeating-linear-gradient(90deg, #c4a15a 0 18px, transparent 18px 32px),
+      linear-gradient(#b9b9b4, #b9b9b4),
+      linear-gradient(#b9b9b4, #b9b9b4),
+      linear-gradient(#b9b9b4, #b9b9b4),
+      linear-gradient(#b9b9b4, #b9b9b4);
+    background-size:
+      72% 5%,
+      72% 5%,
+      72% 5%,
+      72% 5%,
+      72% 5%,
+      11% 7%,
+      11% 7%,
+      11% 7%,
+      11% 7%;
+    background-position:
+      center 18%,
+      center 28%,
+      center 38%,
+      center 48%,
+      center 58%,
+      14% 78%,
+      38% 78%,
+      62% 78%,
+      86% 78%;
   }
 
-  .veil {
-    position: absolute;
-    inset: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.12));
-    color: var(--ink);
-    font: inherit;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    cursor: pointer;
-  }
-
-  .veil span {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    padding: 8px 14px;
-    border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
-    border-radius: 999px;
-    background: rgba(12, 11, 9, 0.72);
-    color: var(--accent);
-    font-size: 11px;
-  }
-
-  .veil:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: -2px;
+  .poster.snake {
+    aspect-ratio: 512 / 624;
+    background-image:
+      linear-gradient(#3ddc97, #3ddc97),
+      linear-gradient(#d23a3a, #d23a3a),
+      linear-gradient(#0c0b09, #0c0b09),
+      repeating-conic-gradient(#ccc6c6 0% 25%, #e8e8e2 0% 50%);
+    background-size:
+      14px 14px,
+      14px 14px,
+      100% 30%,
+      18px 18px;
+    background-position:
+      46% 42%,
+      78% 18%,
+      bottom,
+      0 0;
+    background-repeat: no-repeat, no-repeat, no-repeat, repeat;
   }
 
   .keys {
+    display: block;
     margin: 12px 8px 0;
     color: var(--muted);
     font-size: 12px;
@@ -245,70 +260,27 @@
   <p class="lede">
     The game is a grid of cells. <strong>tick</strong> changes them,
     <strong>view</strong> writes them, and a host paints the diff. Same
-    <strong>App</strong> on this page and in a terminal.
+    <strong>App</strong> in the browser and in a terminal.
   </p>
 
   <section class="games">
-    <article class="machine invaders">
-      <div class="bar"><span><i class="dot"></i><a href="demos/invaders/">Invaders</a></span><span>48×34</span></div>
-      <div class="screen" data-w="768" data-h="544">
-        <iframe src="games/space-invaders/" title="Space Invaders" tabindex="0"></iframe>
-        <button type="button" class="veil"><span>Play</span></button>
-      </div>
-      <p class="keys"><kbd>enter</kbd> start · <kbd>arrows</kbd> move · <kbd>space</kbd> fire</p>
-    </article>
+    <a class="machine invaders" href="demos/invaders/">
+      <span class="bar"><span><i class="dot"></i><b>Invaders</b></span><span>48×34</span></span>
+      <span class="poster inv"></span>
+      <span class="keys"><kbd>enter</kbd> start · <kbd>arrows</kbd> move · <kbd>space</kbd> fire</span>
+    </a>
 
-    <article class="machine">
-      <div class="bar"><span><i class="dot"></i><a href="demos/snake/">Snake</a></span><span>32×39</span></div>
-      <div class="screen" data-w="512" data-h="624">
-        <iframe src="games/snake/" title="Snake" tabindex="0"></iframe>
-        <button type="button" class="veil"><span>Play</span></button>
-      </div>
-      <p class="keys">
+    <a class="machine" href="demos/snake/">
+      <span class="bar"><span><i class="dot"></i><b>Snake</b></span><span>32×39</span></span>
+      <span class="poster snake"></span>
+      <span class="keys">
         <kbd>arrows</kbd> start · <kbd>tab</kbd> feat · <kbd>space</kbd> cycle · <kbd>enter</kbd> retry
-      </p>
-    </article>
+      </span>
+    </a>
   </section>
 
   <footer class="wire">
     <div><code>InputSource → tick → view → Painter</code></div>
-    <div>Click a screen. Keys go there.</div>
+    <div>Open a game.</div>
   </footer>
 </div>
-
-<script>
-  const screens = document.querySelectorAll(".screen");
-
-  function fit() {
-    for (const screen of screens) {
-      const w = Number(screen.dataset.w);
-      const h = Number(screen.dataset.h);
-      const scale = Math.min(1, screen.clientWidth / w);
-      const iframe = screen.querySelector("iframe");
-      iframe.style.width = w + "px";
-      iframe.style.height = h + "px";
-      iframe.style.transform = "scale(" + scale + ")";
-      screen.style.height = Math.ceil(h * scale) + "px";
-    }
-  }
-
-  for (const screen of screens) {
-    const machine = screen.closest(".machine");
-    const iframe = screen.querySelector("iframe");
-    const veil = screen.querySelector(".veil");
-    veil.addEventListener("click", () => {
-      iframe.focus();
-    });
-    iframe.addEventListener("focus", () => {
-      veil.hidden = true;
-      machine.classList.add("live");
-    });
-    iframe.addEventListener("blur", () => {
-      veil.hidden = false;
-      machine.classList.remove("live");
-    });
-  }
-
-  fit();
-  addEventListener("resize", fit);
-</script>
