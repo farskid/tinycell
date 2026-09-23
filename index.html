@@ -1,0 +1,309 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TinyGM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,500;6..72,560&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0c0b09;
+    --ink: #f4efe6;
+    --muted: #9c9488;
+    --line: rgba(244, 239, 230, 0.08);
+    --bezel: #171512;
+    --snake: #3ddc97;
+    --invaders: #d392ff;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  body {
+    min-height: 100%;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-position: center top;
+  }
+
+  .wrap {
+    width: min(1120px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 48px 0 72px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 24px;
+    margin-bottom: 56px;
+  }
+
+  .mark {
+    font-size: 13px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  h1 {
+    margin: 0 0 14px;
+    font-family: Newsreader, "Iowan Old Style", Palatino, serif;
+    font-weight: 560;
+    font-size: clamp(64px, 9vw, 104px);
+    line-height: 0.86;
+    letter-spacing: -0.035em;
+  }
+
+  .lede {
+    max-width: 38rem;
+    margin: 0;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  .lede strong {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .games {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 28px;
+    align-items: start;
+    margin-top: 48px;
+  }
+
+  .machine {
+    --accent: var(--snake);
+    background: var(--bezel);
+    border: 1px solid #2c2822;
+    border-radius: 22px;
+    padding: 14px 14px 16px;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.38);
+  }
+
+  .machine.invaders {
+    --accent: var(--invaders);
+  }
+
+  .machine.live {
+    border-color: color-mix(in srgb, var(--accent) 70%, #2c2822);
+  }
+
+  .bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 2px 8px 12px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .bar b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #3a342c;
+    display: inline-block;
+    margin-right: 8px;
+    vertical-align: 1px;
+  }
+
+  .machine.live .dot {
+    background: var(--accent);
+  }
+
+  .screen {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    background: #000;
+    border-radius: 10px;
+    line-height: 0;
+  }
+
+  .screen iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border: 0;
+    background: #000;
+    transform-origin: top left;
+  }
+
+  .veil {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.12));
+    color: var(--ink);
+    font: inherit;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  .veil span {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    padding: 8px 14px;
+    border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
+    border-radius: 999px;
+    background: rgba(12, 11, 9, 0.72);
+    color: var(--accent);
+    font-size: 11px;
+  }
+
+  .veil:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .keys {
+    margin: 12px 8px 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  kbd {
+    color: var(--ink);
+    font-family: inherit;
+  }
+
+  .wire {
+    margin-top: 64px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  .wire code {
+    color: var(--ink);
+    font-family: inherit;
+  }
+
+  @media (max-width: 860px) {
+    .games {
+      grid-template-columns: 1fr;
+    }
+
+    header {
+      margin-bottom: 36px;
+    }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="mark">Cell engine</div>
+    <div class="mark">Canvas · ANSI</div>
+  </header>
+
+  <h1>TinyGM</h1>
+  <p class="lede">
+    The game is a grid of cells. <strong>tick</strong> changes them,
+    <strong>view</strong> writes them, and a host paints the diff. Same
+    <strong>App</strong> on this page and in a terminal.
+  </p>
+
+  <section class="games">
+    <article class="machine invaders">
+      <div class="bar"><span><i class="dot"></i><b>Invaders</b></span><span>48×34</span></div>
+      <div class="screen" data-w="768" data-h="544">
+        <iframe src="games/space-invaders/" title="Space Invaders" tabindex="0"></iframe>
+        <button type="button" class="veil"><span>Play</span></button>
+      </div>
+      <p class="keys"><kbd>enter</kbd> start · <kbd>arrows</kbd> move · <kbd>space</kbd> fire</p>
+    </article>
+
+    <article class="machine">
+      <div class="bar"><span><i class="dot"></i><b>Snake</b></span><span>32×39</span></div>
+      <div class="screen" data-w="512" data-h="624">
+        <iframe src="games/snake/" title="Snake" tabindex="0"></iframe>
+        <button type="button" class="veil"><span>Play</span></button>
+      </div>
+      <p class="keys">
+        <kbd>arrows</kbd> start · <kbd>tab</kbd> feat · <kbd>space</kbd> cycle · <kbd>enter</kbd> retry
+      </p>
+    </article>
+  </section>
+
+  <footer class="wire">
+    <div><code>InputSource → tick → view → Painter</code></div>
+    <div>Click a screen. Keys go there.</div>
+  </footer>
+</div>
+
+<script>
+  const screens = document.querySelectorAll(".screen");
+
+  function fit() {
+    for (const screen of screens) {
+      const w = Number(screen.dataset.w);
+      const h = Number(screen.dataset.h);
+      const scale = Math.min(1, screen.clientWidth / w);
+      const iframe = screen.querySelector("iframe");
+      iframe.style.width = w + "px";
+      iframe.style.height = h + "px";
+      iframe.style.transform = "scale(" + scale + ")";
+      screen.style.height = Math.ceil(h * scale) + "px";
+    }
+  }
+
+  for (const screen of screens) {
+    const machine = screen.closest(".machine");
+    const iframe = screen.querySelector("iframe");
+    const veil = screen.querySelector(".veil");
+    veil.addEventListener("click", () => {
+      iframe.focus();
+    });
+    iframe.addEventListener("focus", () => {
+      veil.hidden = true;
+      machine.classList.add("live");
+    });
+    iframe.addEventListener("blur", () => {
+      veil.hidden = false;
+      machine.classList.remove("live");
+    });
+  }
+
+  fit();
+  addEventListener("resize", fit);
+</script>

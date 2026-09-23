@@ -7,8 +7,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "vite --config games/snake/vite.config.ts",
+    "dev": "vite",
+    "dev:snake": "vite --config games/snake/vite.config.ts",
     "dev:invaders": "vite --config games/space-invaders/vite.config.ts",
+    "build": "vite build",
+    "preview": "vite preview",
     "test": "node --experimental-transform-types --test --test-concurrency=1 src/engine.test.ts src/ANSIPainter.test.ts src/TTY.test.ts src/CanvasPainter.test.ts src/WebEvent.test.ts games/space-invaders/SpaceInvaders.test.ts",
     "typecheck": "tsc --noEmit"
   },
