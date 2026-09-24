@@ -49,6 +49,18 @@ const SAUCER_Y = 0;
 const SAUCER_GAP = 220;
 const SAUCER_PTS = [50, 100, 150, 300] as const;
 
+const GUN_FAST = 1;
+const GUN_SPLASH = 2;
+const GUN_PIERCE = 3;
+const GUN_TTL = 180;
+const FAST_STEP = 4;
+const FAST_GAP = 4;
+const MAX_PLAYER_SHOTS = 3;
+const CONE_EVERY = 2;
+const DROP_W = 2;
+const DROP_EVERY = 3;
+const DROP_CHANCE = 0.25;
+
 const ROW_COLOR = [
   Color.Magenta,
   Color.Cyan,
@@ -63,13 +75,22 @@ const NOSE = packCell(0x5e, Color.Black, Color.BrightGreen);
 const DEAD_HULL = packCell(0x20, Color.Default, Color.BrightRed);
 const DEAD_NOSE = packCell(0x5e, Color.BrightWhite, Color.BrightRed);
 const SHOT = packCell(0x20, Color.Default, Color.BrightYellow);
+const SHOT_FAST = packCell(0x20, Color.Default, Color.BrightCyan);
+const SHOT_SPLASH = packCell(0x20, Color.Default, Color.BrightMagenta);
+const SHOT_PIERCE = packCell(0x20, Color.Default, Color.BrightWhite);
+const NOSE_FAST = packCell(0x5e, Color.Black, Color.BrightCyan);
+const NOSE_SPLASH = packCell(0x5e, Color.Black, Color.BrightMagenta);
+const NOSE_PIERCE = packCell(0x5e, Color.Black, Color.BrightWhite);
+const DROP_FAST = packCell(0x46, Color.Black, Color.BrightCyan);
+const DROP_SPLASH = packCell(0x53, Color.Black, Color.BrightMagenta);
+const DROP_PIERCE = packCell(0x7c, Color.Black, Color.BrightWhite);
 const BOMB = packCell(0x20, Color.Default, Color.BrightRed);
 const SAUCER_CELL = packCell(0x20, Color.Default, Color.BrightMagenta);
 const SHIELD_CELL = packCell(0x20, Color.Default, Color.White);
 const GROUND = packCell(0x20, Color.Default, Color.BrightBlack);
 
-const SAVE_VER = 1;
-const PAYLOAD = 161;
+const SAVE_VER = 3;
+const PAYLOAD = 186;
 
 type Phase = "idle" | "run" | "dead";
 
@@ -89,9 +110,19 @@ interface State {
   eWait: number;
   saucerWait: number;
   anim: number;
-  pOn: number;
-  pX: number;
-  pY: number;
+  gun: number;
+  gunTtl: number;
+  cool: number;
+  pN: number;
+  pX: Int16Array;
+  pY: Int16Array;
+  pGun: Uint8Array;
+  pDir: Int8Array;
+  dropOn: number;
+  dropKind: number;
+  dropX: number;
+  dropY: number;
+  dropTick: number;
   eN: number;
   eX: Int16Array;
   eY: Int16Array;
@@ -126,9 +157,11 @@ function reset(s: State): void {
   s.eWait = 0;
   s.saucerWait = 0;
   s.anim = 0;
-  s.pOn = 0;
-  s.pX = 0;
-  s.pY = 0;
+  s.gun = 0;
+  s.gunTtl = 0;
+  s.cool = 0;
+  s.pN = 0;
+  clearDrop(s);
   s.eN = 0;
   s.saucerOn = 0;
   s.saucerX = 0;
@@ -228,13 +261,25 @@ function cancelShot(s: State, x: number, y: number): boolean {
   return false;
 }
 
+function clearDrop(s: State): void {
+  s.dropOn = 0;
+  s.dropKind = 0;
+  s.dropX = 0;
+  s.dropY = 0;
+  s.dropTick = 0;
+}
+
 function killPlayer(s: State): void {
   s.lives--;
-  s.pOn = 0;
+  s.pN = 0;
   s.eN = 0;
   s.playerX = START_PX;
-  if (s.lives <= 0) s.phase = "dead";
-  else s.invuln = INVULN;
+  if (s.lives <= 0) {
+    s.phase = "dead";
+    s.gun = 0;
+    s.gunTtl = 0;
+    clearDrop(s);
+  } else s.invuln = INVULN;
 }
 
 function slide(s: State, dir: number): void {
@@ -244,54 +289,147 @@ function slide(s: State, dir: number): void {
   s.playerX = x;
 }
 
-function arm(s: State, fire: boolean): void {
-  if (!fire || s.pOn) return;
-  const x = s.playerX + 1;
-  const y = PLAYER_Y - 1;
-  if (cancelShot(s, x, y)) return;
-  s.pOn = 1;
-  s.pX = x;
-  s.pY = y;
+function removePShot(s: State, i: number): void {
+  const last = s.pN - 1;
+  s.pX[i] = s.pX[last]!;
+  s.pY[i] = s.pY[last]!;
+  s.pGun[i] = s.pGun[last]!;
+  s.pDir[i] = s.pDir[last]!;
+  s.pN = last;
 }
 
-function movePlayerBullet(s: State): void {
-  if (!s.pOn) return;
-  for (let n = 0; n < BULLET_STEP; n++) {
-    const y = s.pY - 1;
-    const x = s.pX;
-    if (y < 0) {
-      s.pOn = 0;
-      return;
-    }
-    s.pY = y;
-    if (damageShield(s, x, y)) {
-      s.pOn = 0;
-      return;
-    }
-    const hit = alienAt(s, x, y);
-    if (hit >= 0) {
-      s.aliens[hit] = 0;
-      s.score += ROW_PTS[(hit / COLS) | 0]!;
-      s.pOn = 0;
-      return;
-    }
-    if (cancelShot(s, x, y)) {
-      s.pOn = 0;
-      return;
-    }
-    if (
-      s.saucerOn &&
-      y === SAUCER_Y &&
-      x >= s.saucerX &&
-      x < s.saucerX + SAUCER_W
-    ) {
-      s.score += s.saucerPts;
-      s.saucerOn = 0;
-      s.saucerWait = 0;
-      s.pOn = 0;
-      return;
+function pushShot(s: State, x: number, y: number, gun: number, dir: number): void {
+  s.pX[s.pN] = x;
+  s.pY[s.pN] = y;
+  s.pGun[s.pN] = gun;
+  s.pDir[s.pN] = dir;
+  s.pN++;
+}
+
+function arm(s: State, fire: boolean): void {
+  if (!fire) return;
+  const x = s.playerX + 1;
+  const y = PLAYER_Y - 1;
+  if (s.gun === GUN_SPLASH) {
+    if (s.pN > 0) return;
+    if (cancelShot(s, x, y)) return;
+    pushShot(s, x, y, GUN_SPLASH, -1);
+    pushShot(s, x, y, GUN_SPLASH, 0);
+    pushShot(s, x, y, GUN_SPLASH, 1);
+    return;
+  }
+  const cap = s.gun === GUN_FAST ? MAX_PLAYER_SHOTS : 1;
+  if (s.pN >= cap || (s.gun === GUN_FAST && s.cool > 0)) return;
+  if (cancelShot(s, x, y)) return;
+  pushShot(s, x, y, s.gun, 0);
+  if (s.gun === GUN_FAST) s.cool = FAST_GAP;
+}
+
+function placeDrop(s: State, x: number, y: number): void {
+  let left = x;
+  if (left < 0) left = 0;
+  if (left > W - DROP_W) left = W - DROP_W;
+  s.dropOn = 1;
+  s.dropKind = 1 + ((Math.random() * 3) | 0);
+  s.dropX = left;
+  s.dropY = y < 0 ? 0 : y >= H ? H - 1 : y;
+  s.dropTick = 0;
+}
+
+function maybeDrop(s: State, alien: number): void {
+  if (s.dropOn || Math.random() >= DROP_CHANCE) return;
+  placeDrop(
+    s,
+    s.formX + (alien % COLS) * PITCH_X,
+    s.formY + ((alien / COLS) | 0) * PITCH_Y,
+  );
+}
+
+function strike(s: State, x: number, y: number, gun: number): boolean {
+  if (damageShield(s, x, y)) return true;
+  const hit = alienAt(s, x, y);
+  if (hit >= 0) {
+    s.aliens[hit] = 0;
+    s.score += ROW_PTS[(hit / COLS) | 0]!;
+    maybeDrop(s, hit);
+    return gun !== GUN_PIERCE;
+  }
+  if (cancelShot(s, x, y)) return true;
+  if (
+    s.saucerOn &&
+    y === SAUCER_Y &&
+    x >= s.saucerX &&
+    x < s.saucerX + SAUCER_W
+  ) {
+    s.score += s.saucerPts;
+    if (!s.dropOn) placeDrop(s, s.saucerX, SAUCER_Y);
+    s.saucerOn = 0;
+    s.saucerWait = 0;
+    return gun !== GUN_PIERCE;
+  }
+  return false;
+}
+
+function movePlayerBullets(s: State): void {
+  for (let i = s.pN - 1; i >= 0; i--) {
+    const gun = s.pGun[i]!;
+    const step = gun === GUN_FAST ? FAST_STEP : BULLET_STEP;
+    const dir = s.pDir[i]!;
+    let gone = false;
+    for (let n = 0; n < step && !gone; n++) {
+      const y = s.pY[i]! - 1;
+      let x = s.pX[i]!;
+      if (y < 0) {
+        removePShot(s, i);
+        gone = true;
+        break;
+      }
+      if (gun === GUN_SPLASH && dir !== 0 && ((PLAYER_Y - 1 - y) % CONE_EVERY) === 0) {
+        x += dir;
+      }
+      if (x < 0 || x >= W) {
+        removePShot(s, i);
+        gone = true;
+        break;
+      }
+      s.pX[i] = x;
+      s.pY[i] = y;
+      if (strike(s, x, y, gun)) {
+        removePShot(s, i);
+        gone = true;
+      }
     }
   }
+}
+
+function overlapsShip(s: State): boolean {
+  if (s.dropY < PLAYER_Y - 1 || s.dropY > PLAYER_Y) return false;
+  return s.dropX < s.playerX + PLAYER_W && s.dropX + DROP_W > s.playerX;
+}
+
+function takeDrop(s: State): void {
+  s.gun = s.dropKind;
+  s.gunTtl = GUN_TTL;
+  s.cool = 0;
+  clearDrop(s);
+}
+
+function moveDrop(s: State): void {
+  if (!s.dropOn) return;
+  if (overlapsShip(s)) {
+    takeDrop(s);
+    return;
+  }
+  s.dropTick++;
+  if (s.dropTick < DROP_EVERY) return;
+  s.dropTick = 0;
+  const y = s.dropY + 1;
+  if (y >= H) {
+    clearDrop(s);
+    return;
+  }
+  s.dropY = y;
+  if (overlapsShip(s)) takeDrop(s);
 }
 
 function moveEnemyBullets(s: State): void {
@@ -300,9 +438,10 @@ function moveEnemyBullets(s: State): void {
     let y = s.eY[i]!;
     let drop = false;
     y++;
+    const shot = playerShotAt(s, x, y);
     if (y >= H || damageShield(s, x, y)) drop = true;
-    else if (s.pOn && s.pX === x && s.pY === y) {
-      s.pOn = 0;
+    else if (shot >= 0) {
+      removePShot(s, shot);
       drop = true;
     } else if (y === PLAYER_Y && x >= s.playerX && x < s.playerX + PLAYER_W) {
       if (s.invuln <= 0) {
@@ -314,6 +453,14 @@ function moveEnemyBullets(s: State): void {
     if (drop) removeShot(s, i);
     else s.eY[i] = y;
   }
+}
+
+function playerShotAt(s: State, x: number, y: number): number {
+  for (let i = 0; i < s.pN; i++) {
+    if (s.pY[i] !== y) continue;
+    if (s.pX[i] === x) return i;
+  }
+  return -1;
 }
 
 function tryEnemyShot(s: State): void {
@@ -391,7 +538,7 @@ function nextWave(s: State): void {
   s.march = 0;
   s.alienStep = 0;
   s.aliens.fill(1);
-  s.pOn = 0;
+  s.pN = 0;
   s.eN = 0;
   s.saucerOn = 0;
   s.saucerWait = 0;
@@ -400,9 +547,15 @@ function nextWave(s: State): void {
 function simulate(s: State, dir: number, fire: boolean): void {
   s.anim++;
   if (s.invuln > 0) s.invuln--;
+  if (s.gunTtl > 0) {
+    s.gunTtl--;
+    if (s.gunTtl === 0) s.gun = 0;
+  }
+  if (s.cool > 0) s.cool--;
   slide(s, dir);
   arm(s, fire);
-  movePlayerBullet(s);
+  movePlayerBullets(s);
+  moveDrop(s);
   if (countAlive(s) === 0) {
     nextWave(s);
     return;
@@ -424,6 +577,47 @@ function rowColor(row: number, march: number): Color {
   const base = ROW_COLOR[row] ?? Color.Green;
   if (!march) return base;
   return (base + 8) as Color;
+}
+
+function gunName(gun: number): string {
+  if (gun === GUN_FAST) return "FAST";
+  if (gun === GUN_SPLASH) return "SPLASH";
+  if (gun === GUN_PIERCE) return "PIERCE";
+  return "";
+}
+
+function gunMeter(ttl: number): string {
+  const n = Math.ceil((ttl * 8) / GUN_TTL);
+  const filled = n < 0 ? 0 : n > 8 ? 8 : n;
+  let s = "";
+  for (let i = 0; i < 8; i++) s += i < filled ? "#" : "-";
+  return s;
+}
+
+function shotCell(gun: number): number {
+  if (gun === GUN_FAST) return SHOT_FAST;
+  if (gun === GUN_SPLASH) return SHOT_SPLASH;
+  if (gun === GUN_PIERCE) return SHOT_PIERCE;
+  return SHOT;
+}
+
+function noseCell(gun: number): number {
+  if (gun === GUN_FAST) return NOSE_FAST;
+  if (gun === GUN_SPLASH) return NOSE_SPLASH;
+  if (gun === GUN_PIERCE) return NOSE_PIERCE;
+  return NOSE;
+}
+
+function dropCell(kind: number): number {
+  if (kind === GUN_FAST) return DROP_FAST;
+  if (kind === GUN_SPLASH) return DROP_SPLASH;
+  return DROP_PIERCE;
+}
+
+function dropTail(kind: number): number {
+  if (kind === GUN_FAST) return SHOT_FAST;
+  if (kind === GUN_SPLASH) return SHOT_SPLASH;
+  return SHOT_PIERCE;
 }
 
 function pad(n: number, width: number): string {
@@ -483,19 +677,28 @@ function draw(s: State, out: Surface): void {
     out.set(x + 1, y, cell);
   }
   for (let i = 0; i < s.eN; i++) out.set(s.eX[i]!, s.eY[i]!, BOMB);
-  if (s.pOn) out.set(s.pX, s.pY, SHOT);
+  for (let i = 0; i < s.pN; i++) {
+    out.set(s.pX[i]!, s.pY[i]!, shotCell(s.pGun[i]!));
+  }
+  if (s.dropOn) {
+    const cell = dropCell(s.dropKind);
+    const tail = dropTail(s.dropKind);
+    out.set(s.dropX, s.dropY, cell);
+    out.set(s.dropX + 1, s.dropY, tail);
+  }
   const blink = s.phase === "run" && s.invuln > 0 && (s.anim & 1) === 0;
   if (!blink) {
     const dead = s.phase === "dead";
     out.set(s.playerX, PLAYER_Y, dead ? DEAD_HULL : HULL);
-    out.set(s.playerX + 1, PLAYER_Y, dead ? DEAD_NOSE : NOSE);
+    out.set(s.playerX + 1, PLAYER_Y, dead ? DEAD_NOSE : noseCell(s.gun));
     out.set(s.playerX + 2, PLAYER_Y, dead ? DEAD_HULL : HULL);
   }
+  const hud = `SCORE ${pad(s.score, 4)}  LIVES ${s.lives}  WAVE ${pad(s.wave, 2)}`;
   writeHud(
     out,
     0,
     H,
-    `SCORE ${pad(s.score, 4)}  LIVES ${s.lives}  WAVE ${pad(s.wave, 2)}`,
+    s.gun ? `${hud}  ${gunName(s.gun)} ${gunMeter(s.gunTtl)}` : hud,
     Color.BrightWhite,
   );
   writeHud(out, 0, H + 1, hint(s.phase), Color.BrightBlack);
@@ -567,11 +770,22 @@ function writeState(s: State, out: Uint8Array): number {
   i += 2;
   writeU32(out, i, s.score);
   i += 4;
-  out[i++] = s.pOn;
-  writeU16(out, i, s.pX);
+  out[i++] = s.gun;
+  writeU16(out, i, s.gunTtl);
   i += 2;
-  writeU16(out, i, s.pY);
-  i += 2;
+  out[i++] = s.cool;
+  out[i++] = s.pN;
+  for (let k = 0; k < MAX_PLAYER_SHOTS; k++) {
+    const x = k < s.pN ? s.pX[k]! : 0;
+    const y = k < s.pN ? s.pY[k]! : 0;
+    const gun = k < s.pN ? s.pGun[k]! : 0;
+    const dir = k < s.pN ? s.pDir[k]! : 0;
+    writeU16(out, i, x);
+    writeU16(out, i + 2, y);
+    out[i + 4] = gun;
+    out[i + 5] = dir & 0xff;
+    i += 6;
+  }
   out[i++] = s.eN;
   for (let k = 0; k < MAX_SHOTS; k++) {
     const x = k < s.eN ? s.eX[k]! : 0;
@@ -586,6 +800,13 @@ function writeState(s: State, out: Uint8Array): number {
   out[i++] = s.saucerDir & 0xff;
   writeU16(out, i, s.saucerPts);
   i += 2;
+  out[i++] = s.dropOn;
+  out[i++] = s.dropKind;
+  writeU16(out, i, s.dropX);
+  i += 2;
+  writeU16(out, i, s.dropY);
+  i += 2;
+  out[i++] = s.dropTick;
   out.set(s.aliens, i);
   i += ALIEN_N;
   out.set(s.shields, i);
@@ -626,11 +847,22 @@ function readState(
   i += 2;
   const score = readU32(blob, i);
   i += 4;
-  const pOn = blob[i++]!;
-  const pX = readI16(blob, i);
+  const gun = blob[i++]!;
+  const gunTtl = readU16(blob, i);
   i += 2;
-  const pY = readI16(blob, i);
-  i += 2;
+  const cool = blob[i++]!;
+  const pN = blob[i++]!;
+  const pX = [0, 0, 0];
+  const pY = [0, 0, 0];
+  const pGun = [0, 0, 0];
+  const pDir = [0, 0, 0];
+  for (let k = 0; k < MAX_PLAYER_SHOTS; k++) {
+    pX[k] = readI16(blob, i);
+    pY[k] = readI16(blob, i + 2);
+    pGun[k] = blob[i + 4]!;
+    pDir[k] = readI8(blob, i + 5);
+    i += 6;
+  }
   const eN = blob[i++]!;
   const shotsX = [0, 0, 0];
   const shotsY = [0, 0, 0];
@@ -646,6 +878,13 @@ function readState(
   i++;
   const saucerPts = readU16(blob, i);
   i += 2;
+  const dropOn = blob[i++]!;
+  const dropKind = blob[i++]!;
+  const dropX = readI16(blob, i);
+  i += 2;
+  const dropY = readI16(blob, i);
+  i += 2;
+  const dropTick = blob[i++]!;
   if (
     lives > 5 ||
     wave < 1 ||
@@ -657,17 +896,39 @@ function readState(
     formY > H ||
     march > 1 ||
     playerX > W - PLAYER_W ||
-    pOn > 1 ||
+    gun > GUN_PIERCE ||
+    gunTtl > GUN_TTL ||
+    (gun === 0 ? gunTtl !== 0 : gunTtl === 0) ||
+    cool > FAST_GAP ||
+    pN > MAX_PLAYER_SHOTS ||
     saucerOn > 1 ||
     eN > MAX_SHOTS ||
     (saucerDir !== -1 && saucerDir !== 1) ||
     saucerX < -SAUCER_W ||
     saucerX > W ||
-    saucerPts > 1000
+    saucerPts > 1000 ||
+    dropOn > 1 ||
+    dropTick >= DROP_EVERY ||
+    (dropOn === 0
+      ? dropKind !== 0 || dropX !== 0 || dropY !== 0
+      : dropKind < 1 ||
+        dropKind > GUN_PIERCE ||
+        dropX < 0 ||
+        dropX > W - DROP_W ||
+        dropY < 0 ||
+        dropY >= H)
   ) {
     return false;
   }
-  if (pOn && (pX < 0 || pX >= W || pY < 0 || pY >= H)) return false;
+  for (let k = 0; k < pN; k++) {
+    const x = pX[k]!;
+    const y = pY[k]!;
+    const g = pGun[k]!;
+    const dir = pDir[k]!;
+    if (x < 0 || x >= W || y < 0 || y >= H || g > GUN_PIERCE) return false;
+    if (dir !== -1 && dir !== 0 && dir !== 1) return false;
+    if (g !== GUN_SPLASH && dir !== 0) return false;
+  }
   for (let k = 0; k < eN; k++) {
     const x = shotsX[k]!;
     const y = shotsY[k]!;
@@ -692,9 +953,16 @@ function readState(
   s.saucerWait = saucerWait;
   s.anim = anim;
   s.score = score;
-  s.pOn = pOn;
-  s.pX = pX;
-  s.pY = pY;
+  s.gun = gun;
+  s.gunTtl = gunTtl;
+  s.cool = cool;
+  s.pN = pN;
+  for (let k = 0; k < MAX_PLAYER_SHOTS; k++) {
+    s.pX[k] = pX[k]!;
+    s.pY[k] = pY[k]!;
+    s.pGun[k] = pGun[k]!;
+    s.pDir[k] = pDir[k]!;
+  }
   s.eN = eN;
   for (let k = 0; k < MAX_SHOTS; k++) {
     s.eX[k] = shotsX[k]!;
@@ -704,6 +972,11 @@ function readState(
   s.saucerX = saucerX;
   s.saucerDir = saucerDir;
   s.saucerPts = saucerPts;
+  s.dropOn = dropOn;
+  s.dropKind = dropKind;
+  s.dropX = dropX;
+  s.dropY = dropY;
+  s.dropTick = dropTick;
   s.aliens.set(blob.subarray(i, alienEnd));
   s.shields.set(blob.subarray(alienEnd, shieldEnd));
   return true;
@@ -747,9 +1020,19 @@ export function createSpaceInvadersApp(): App {
     eWait: 0,
     saucerWait: 0,
     anim: 0,
-    pOn: 0,
-    pX: 0,
-    pY: 0,
+    gun: 0,
+    gunTtl: 0,
+    cool: 0,
+    pN: 0,
+    pX: new Int16Array(MAX_PLAYER_SHOTS),
+    pY: new Int16Array(MAX_PLAYER_SHOTS),
+    pGun: new Uint8Array(MAX_PLAYER_SHOTS),
+    pDir: new Int8Array(MAX_PLAYER_SHOTS),
+    dropOn: 0,
+    dropKind: 0,
+    dropX: 0,
+    dropY: 0,
+    dropTick: 0,
     eN: 0,
     eX: new Int16Array(MAX_SHOTS),
     eY: new Int16Array(MAX_SHOTS),

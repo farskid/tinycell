@@ -212,7 +212,11 @@ h1 {
 
 .grip:hover,
 .grip:focus-visible {
-  background: linear-gradient(135deg, transparent 0 46%, var(--accent) 46% 100%);
+  background: linear-gradient(
+    135deg,
+    transparent 0 46%,
+    var(--accent) 46% 100%
+  );
 }
 
 .grip:focus-visible {

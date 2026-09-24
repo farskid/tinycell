@@ -177,6 +177,41 @@ test("hold repeats the newest arrow until keyup or blur", () => {
   }
 });
 
+test("hold pumps every held key each frame", () => {
+  const keys = fakeKeys();
+  const queue = new InputQueue();
+  const frames: Array<(time: number) => void> = [];
+  const prevR = globalThis.requestAnimationFrame;
+  const prevC = globalThis.cancelAnimationFrame;
+  globalThis.requestAnimationFrame = (cb) => {
+    frames.push(cb);
+    return frames.length;
+  };
+  globalThis.cancelAnimationFrame = () => {};
+  const detach = createWebEvent(keys.target, {
+    hold: [Key.Left, Key.Right, Key.Space],
+  }).attach(queue);
+  try {
+    keys.target.press({ key: "ArrowLeft" });
+    keys.target.press({ key: " " });
+    queue.clear();
+    frames.shift()?.(0);
+    assert.deepEqual(
+      [0, 1].map((i) => keyOf(queue.at(i))),
+      [Key.Left, Key.Space],
+    );
+    keys.target.release({ key: "ArrowLeft" });
+    queue.clear();
+    frames.shift()?.(0);
+    assert.equal(queue.length, 1);
+    assert.equal(keyOf(queue.at(0)), Key.Space);
+  } finally {
+    detach();
+    globalThis.requestAnimationFrame = prevR;
+    globalThis.cancelAnimationFrame = prevC;
+  }
+});
+
 test("detach stops keys and a second attach replaces the first", () => {
   const keys = fakeKeys();
   const first = new InputQueue();

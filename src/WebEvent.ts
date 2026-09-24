@@ -63,7 +63,7 @@ export function createWebEvent(
       function pump(): void {
         frame = 0;
         if (done || held.length === 0) return;
-        queue.push(keyEvent(held[held.length - 1]!));
+        for (let i = 0; i < held.length; i++) queue.push(keyEvent(held[i]!));
         arm();
       }
 

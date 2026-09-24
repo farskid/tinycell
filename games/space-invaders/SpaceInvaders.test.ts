@@ -155,3 +155,106 @@ test("ctrl+c stops the engine", () => {
   } as Engine);
   assert.equal(stopped, true);
 });
+
+function hud(app: App): string {
+  return rowText(paint(app), app.size.h - 2);
+}
+
+function withRandom(fn: () => number, body: () => void): void {
+  const real = Math.random;
+  Math.random = fn;
+  try {
+    body();
+  } finally {
+    Math.random = real;
+  }
+}
+
+function countBand(app: App, color: Color, y0: number, y1: number): number {
+  const surface = paint(app);
+  let n = 0;
+  for (let row = y0; row < y1; row++) {
+    for (let x = 0; x < surface.w; x++) {
+      if (cellBg(surface.cells[row * surface.w + x]!) === color) n++;
+    }
+  }
+  return n;
+}
+
+test("a caught drop arms a gun, then it expires", () => {
+  withRandom(
+    () => 0,
+    () => {
+      const app = createSpaceInvadersApp();
+      frames(app, Key.Enter, 1);
+      let armed = false;
+      for (let i = 0; i < 500 && !armed; i++) {
+        frames(app, Key.Space, 1);
+        armed = hud(app).includes("FAST");
+      }
+      assert.equal(armed, true);
+      const saved = snap(app);
+      const other = createSpaceInvadersApp();
+      other.hydrate(saved, 0, saved.length);
+      assert.equal(hud(other).includes("FAST"), true);
+
+      frames(app, Key.Left, 30);
+      assert.equal(hud(app).includes("FAST"), true);
+      let gone = false;
+      for (let i = 0; i < 400 && !gone; i++) {
+        frames(app, null, 1);
+        gone = !hud(app).includes("FAST");
+      }
+      assert.equal(gone, true);
+    },
+  );
+});
+
+test("splash fires a cone", () => {
+  let n = 0;
+  withRandom(
+    () => {
+      n++;
+      return n === 2 ? 0.5 : 0;
+    },
+    () => {
+      const app = createSpaceInvadersApp();
+      frames(app, Key.Enter, 1);
+      let armed = false;
+      for (let i = 0; i < 500 && !armed; i++) {
+        frames(app, Key.Space, 1);
+        armed = hud(app).includes("SPLASH");
+      }
+      assert.equal(armed, true);
+      frames(app, null, 40);
+      assert.equal(countBand(app, Color.BrightMagenta, 26, 30), 0);
+      frames(app, Key.Space, 1);
+      assert.equal(countBand(app, Color.BrightMagenta, 26, 30), 3);
+    },
+  );
+});
+
+test("pierce keeps scoring through a column", () => {
+  let n = 0;
+  withRandom(
+    () => {
+      n++;
+      return n === 2 ? 0.9 : 0;
+    },
+    () => {
+      const app = createSpaceInvadersApp();
+      frames(app, Key.Enter, 1);
+      let armed = false;
+      for (let i = 0; i < 500 && !armed; i++) {
+        frames(app, Key.Space, 1);
+        armed = hud(app).includes("PIERCE");
+      }
+      assert.equal(armed, true);
+      frames(app, null, 40);
+      const before = scoreOf(app);
+      frames(app, Key.Space, 1);
+      frames(app, null, 20);
+      assert.ok(scoreOf(app) >= before + 20);
+    },
+  );
+});

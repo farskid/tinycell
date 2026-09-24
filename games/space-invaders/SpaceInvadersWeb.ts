@@ -32,7 +32,7 @@ function bootEngine(
   const opts = {
     app,
     painter: createWebCanvas(canvas, { cellPx: CELL }),
-    inputs: [createWebEvent(window, { hold: [Key.Left, Key.Right] })],
+    inputs: [createWebEvent(window, { hold: [Key.Left, Key.Right, Key.Space] })],
     tickHz: 30,
   };
   if (!saved) return createEngine(opts);

@@ -36,6 +36,8 @@ Roguelike
 
 Stretch (cell motion, still on this engine)
 [x] Flappy
+[ ] Mario
+[ ] Variable jump height. Hold space to stay in the rise. Blocked on WebEvent: the hold pump emits only the newest key, so Left and Space cannot both be down. Mario hops on the space edge until the pump emits every held key.
 [ ] Asteroids
 [ ] Missile Command
 [ ] Match-3
