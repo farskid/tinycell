@@ -34,7 +34,7 @@ export function mountSamples(root: HTMLElement, samples: readonly Sample[]): voi
     }
     const file = samples[index]!.path;
     fileName.textContent = file;
-    path.href = `https://github.com/farskid/tinycell/blob/engine-core/${file}`;
+    path.href = `https://github.com/farskid/tinycell/blob/main/${file}`;
   }
 
   samples.forEach((sample, i) => {

@@ -2,7 +2,7 @@ name: pages
 
 on:
   push:
-    branches: [engine-core]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
