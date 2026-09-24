@@ -1,8 +1,9 @@
 import { createEngine, Key } from "../../src/engine.ts";
 import { createWebCanvas } from "../../src/CanvasPainter.ts";
 import { createWebEvent } from "../../src/WebEvent.ts";
+import { createWebAudio } from "../../src/WebAudio.ts";
 import { bindWebPersist, createWebPersist } from "../WebPersist.ts";
-import { createSpaceInvadersApp } from "./SpaceInvaders.ts";
+import { createSpaceInvadersApp, Cue } from "./SpaceInvaders.ts";
 
 const CELL = 16;
 
@@ -33,6 +34,24 @@ function bootEngine(
     app,
     painter: createWebCanvas(canvas, { cellPx: CELL }),
     inputs: [createWebEvent(window, { hold: [Key.Left, Key.Right, Key.Space] })],
+    audio: createWebAudio(new AudioContext(), {
+      unlock: window,
+      cues: {
+        [Cue.Shot]: { wave: "square", note: 90, ms: 40, gain: 0.25 },
+        [Cue.Alien]: { wave: "square", note: 55, ms: 70, gain: 0.35 },
+        [Cue.Saucer]: { wave: "sawtooth", note: 72, ms: 140, gain: 0.3 },
+        [Cue.Hurt]: { wave: "noise", note: 0, ms: 180, gain: 0.45 },
+        [Cue.Wave]: { wave: "triangle", note: 72, ms: 280, gain: 0.45 },
+        [Cue.Wave2]: { wave: "triangle", note: 84, ms: 360, gain: 0.4 },
+        [Cue.Over]: { wave: "sawtooth", note: 36, ms: 480, gain: 0.5 },
+        [Cue.Dive]: { wave: "sawtooth", note: 42, ms: 160, gain: 0.4 },
+        [Cue.March0]: { wave: "square", note: 41, gain: 0.12, lane: "music" },
+        [Cue.March1]: { wave: "square", note: 39, gain: 0.12, lane: "music" },
+        [Cue.March2]: { wave: "square", note: 37, gain: 0.12, lane: "music" },
+        [Cue.March3]: { wave: "square", note: 34, gain: 0.12, lane: "music" },
+        [Cue.Silence]: { wave: "square", note: 0, gain: 0, lane: "music" },
+      },
+    }),
     tickHz: 30,
   };
   if (!saved) return createEngine(opts);

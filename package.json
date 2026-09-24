@@ -34,7 +34,7 @@
     "demo": "node scripts/demo.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --experimental-transform-types --test --test-concurrency=1 src/engine.test.ts src/ANSIPainter.test.ts src/TTY.test.ts src/CanvasPainter.test.ts src/WebEvent.test.ts src/WebSwipe.test.ts src/WebAudio.test.ts games/space-invaders/SpaceInvaders.test.ts games/flappy/Flappy.test.ts games/fx.test.ts games/2048/Game2048.test.ts",
+    "test": "node --experimental-transform-types --test --test-concurrency=1 src/engine.test.ts src/ANSIPainter.test.ts src/TTY.test.ts src/CanvasPainter.test.ts src/WebEvent.test.ts src/WebSwipe.test.ts src/WebAudio.test.ts games/space-invaders/SpaceInvaders.test.ts games/flappy/Flappy.test.ts games/snake/Snake.test.ts games/fx.test.ts games/2048/Game2048.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

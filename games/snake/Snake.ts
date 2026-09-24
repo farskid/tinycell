@@ -5,9 +5,38 @@ import {
   keyOf,
   packCell,
   type App,
+  type CueQueue,
+  type Engine,
   type InputQueue,
   type Surface,
 } from "../../src/engine.ts";
+
+export const Cue = {
+  Eat: 1,
+  Bonus: 2,
+  Die: 3,
+  Tune0: 4,
+  Tune1: 5,
+  Tune2: 6,
+  Tune3: 7,
+  Tune4: 8,
+  Tune5: 9,
+  Tune6: 10,
+  Tune7: 11,
+  Silence: 255,
+} as const;
+
+const TUNE = [
+  Cue.Tune0,
+  Cue.Tune1,
+  Cue.Tune2,
+  Cue.Tune3,
+  Cue.Tune4,
+  Cue.Tune5,
+  Cue.Tune6,
+  Cue.Tune7,
+] as const;
+const TUNE_EVERY = 12;
 
 const W = 32;
 const H = 32;
@@ -295,6 +324,10 @@ function cycleFeat(c: GameState): void {
   syncFeatures(c);
 }
 
+function sound(cues: CueQueue | undefined, id: number): void {
+  cues?.push(id);
+}
+
 function moveRocks(c: GameState): void {
   if (c.features.obstacles !== "moving" || c.phase !== "run") return;
   for (let i = 0; i < c.rockN; i++) {
@@ -340,7 +373,7 @@ function moveRocks(c: GameState): void {
   }
 }
 
-function stepMove(c: GameState, f: Features): void {
+function stepMove(c: GameState, f: Features, cues?: CueQueue): void {
   if (!c.dir) return;
   const hit = wallAt(f, c.xs[c.head]! + c.dir.x, c.ys[c.head]! + c.dir.y);
   if (!hit) {
@@ -356,11 +389,13 @@ function stepMove(c: GameState, f: Features): void {
     dropFood(c, food);
     grow = 1;
     c.score++;
+    sound(cues, Cue.Eat);
   }
   if (bonus && c.bonus) {
     grow += c.bonus.ttl > 0 ? BONUS_PRIZE : 0;
     c.score += BONUS_PRIZE;
     c.bonus = null;
+    sound(cues, Cue.Bonus);
   }
   const stayTail = c.pending + grow > 0;
   if (c.occ[ni] === ROCK_MARK) {
@@ -805,9 +840,31 @@ export function createSnakeApp(): App {
   };
   reset(gameState);
 
+  let tuneAt = 0;
+  let tuneStep = 0;
+  let tuneOn = false;
+
+  function driveMusic(phase: Phase, cues?: CueQueue): void {
+    if (phase !== "run") {
+      if (tuneOn) sound(cues, Cue.Silence);
+      tuneOn = false;
+      tuneAt = 0;
+      tuneStep = 0;
+      return;
+    }
+    if (tuneOn && tuneAt < TUNE_EVERY) {
+      tuneAt++;
+      return;
+    }
+    sound(cues, TUNE[tuneStep]!);
+    tuneStep = (tuneStep + 1) % TUNE.length;
+    tuneAt = 0;
+    tuneOn = true;
+  }
+
   return {
     size: { w: W, h: H + HUD_H },
-    tick(input, engine) {
+    tick(input, engine: Engine, cues?: CueQueue) {
       for (let i = 0; i < input.length; i++) {
         const k = keyOf(input.at(i));
         if (k === Key.CtrlC) {
@@ -826,26 +883,36 @@ export function createSnakeApp(): App {
         for (let i = 0; i < input.length; i++) {
           if (keyOf(input.at(i)) === Key.Enter) reset(gameState);
         }
+        driveMusic(gameState.phase, cues);
         return;
       }
       if (gameState.phase === "idle") {
         const d = lastDir(input);
-        if (!d) return;
+        if (!d) {
+          driveMusic(gameState.phase, cues);
+          return;
+        }
         gameState.dir = d;
         gameState.step = moveEvery(gameState) - 1;
         gameState.phase = "run";
+        driveMusic(gameState.phase, cues);
         return;
       }
       queueDir(gameState, lastDir(input));
       tickBonus(gameState, gameState.features);
       gameState.step++;
-      if (gameState.step < moveEvery(gameState)) return;
+      if (gameState.step < moveEvery(gameState)) {
+        driveMusic(gameState.phase, cues);
+        return;
+      }
       gameState.step = 0;
       if (gameState.queued) {
         gameState.dir = gameState.queued;
         gameState.queued = null;
       }
-      stepMove(gameState, gameState.features);
+      stepMove(gameState, gameState.features, cues);
+      if (gameState.phase !== "run") sound(cues, Cue.Die);
+      driveMusic(gameState.phase, cues);
     },
     view(out) {
       drawBoard(gameState, out);

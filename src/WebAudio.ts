@@ -58,7 +58,7 @@ interface AudioNode {
 }
 
 interface Oscillator extends AudioNode {
-  type: Exclude<Wave, "noise">;
+  type: string;
   frequency: AudioParam;
   start(when?: number): void;
   stop(when?: number): void;
