@@ -2,7 +2,7 @@
 
 A TypeScript engine for games made of cells. `tick` updates the grid, `view` draws it. One `App` runs on a canvas and in a terminal.
 
-The slogan is the whole design: a **host-blind fixed-timestep cell engine**. One `App` owns the rules and the grid. The host only paints, feeds keys, and stores bytes. [`src/engine.ts`](src/engine.ts) imports nothing from Node, the DOM, or a canvas. Terminal and browser are adapters. A native port would be the same job: rewrite the adapters, keep the `App`.
+The slogan is the whole design: a **host-blind fixed-timestep cell engine**. One `App` owns the rules and the grid. The host only paints, feeds keys, plays cues, and stores bytes. [`src/engine.ts`](src/engine.ts) imports nothing from Node, the DOM, or a canvas. Terminal and browser are adapters. A native port would be the same job: rewrite the adapters, keep the `App`.
 
 ## Why a grid
 
@@ -17,14 +17,16 @@ Time is discrete on purpose. The engine steps at `tickHz`. If the tab was asleep
 Something in the host — a key, a swipe — becomes an event and waits in a small ring. On the tick, the `App` reads that queue and changes its own state. Then `view` writes a `Surface`. The painter diffs that surface against the last one and sends only the dirty cells to the terminal or the canvas.
 
 ```
-keys, swipes  →  queue  →  App.tick
-                                │
-                           App.view(Surface)
+keys, swipes  →  queue  →  App.tick  →  cue ids
+                                │            │
+                           App.view(Surface) AudioSink.play
                                 │
                            Painter.paint
 ```
 
-`createEngine` is the wire between those three. You hand it an `App`, a `Painter`, and any number of input sources. It owns the clock: `start`, `pause`, `resume`, `stop`. Pause freezes time without dropping the adapters. Stop detaches input and disposes the painter. The grid is the smaller of what the game wants and what the host can show. A resize from either side rebuilds the surface.
+Cue ids are names. The sink maps them to a tone or a decoded buffer. The engine never sees a URL, a sample, or which host it is on. Omit `audio` and the same ticks run in silence, which is what the terminal host does. A browser host passes `createWebAudio`.
+
+`createEngine` is the wire. You hand it an `App`, a `Painter`, an optional `AudioSink`, and any number of input sources. It owns the clock: `start`, `pause`, `resume`, `stop`. Pause freezes time and suspends the sink without dropping adapters. Stop detaches input and disposes the painter and the sink. The grid is the smaller of what the game wants and what the host can show. A resize from either side rebuilds the surface.
 
 2048 is a nice proof of the input side. On the web it listens to both the keyboard and a swipe. A drag becomes the same arrow event the terminal already produces. The game calls `keyOf`. It never sees a DOM event or a byte from stdin.
 
@@ -51,6 +53,7 @@ function createEngine(opts: {
   app: App;
   painter: Painter;
   inputs?: InputSource[];
+  audio?: AudioSink;
   tickHz?: number; // default 20, must be > 0
   maxTicksPerWake?: number; // default 4, at least 1
   resume?: Uint8Array;
@@ -84,13 +87,13 @@ stateDiagram-v2
   paused --> stopped: stop()
 ```
 
-On a wake the engine calls `app.tick`, then clears the queue, once per step that fits. When at least one tick ran, the phase is still `running`, and `painter.ready` is true, it calls `app.view` and `painter.paint`. Ticks keep running while the painter is not ready.
+On a wake the engine calls `app.tick`, then clears the input queue, once per step that fits. Cue pushes from those ticks stay queued. When at least one tick ran and the phase is still `running`, it flushes them once: `audio.play` if the sink is ready, then it always clears the cue queue. A sink that is not ready drops that wake. The cues do not wait around for the next one. After that, when `painter.ready` is true, it calls `app.view` and `painter.paint`. Ticks keep running while the painter or the sink is not ready.
 
 ### App
 
 ```ts
 interface App {
-  tick(input: InputQueue, engine: Engine): void;
+  tick(input: InputQueue, engine: Engine, cues?: CueQueue): void;
   view(out: Surface): void;
   readonly size: { readonly w: number; readonly h: number };
   onResize?(w: number, h: number): void;
@@ -99,7 +102,7 @@ interface App {
 }
 ```
 
-`tick` reads the queue and mutates game state. `view` writes cells into the surface the engine owns. `size` is the grid the game wants. The painter may be smaller, and the engine uses the smaller of the two. `snapshot` and `hydrate` are the save path.
+`tick` reads the queue, mutates game state, and pushes cue ids. `view` writes cells into the surface the engine owns. A function that ignores `cues` is still an `App`. `size` is the grid the game wants. The painter may be smaller, and the engine uses the smaller of the two. `snapshot` and `hydrate` are the save path.
 
 ### Snapshot
 
@@ -127,6 +130,29 @@ interface Painter {
 ```
 
 `paint` receives the whole front surface. Diffing belongs to the painter. `onResize` is how the painter tells the engine its size changed. `resize` is the engine telling the painter which grid to draw. `dispose` runs from `stop`.
+
+### Audio
+
+```ts
+class CueQueue {
+  push(id: number): void;
+  readonly length: number;
+  at(i: number): number;
+  clear(): void;
+}
+
+interface AudioSink {
+  readonly ready: boolean;
+  play(cues: CueQueue): void;
+  suspend(): void;
+  resume(): void;
+  dispose(): void;
+}
+```
+
+`push` keeps ids `1..255` and drops anything else. The queue holds 16 ids. A push past that drops the oldest. The engine reads the queue once per wake, then clears it. `play` has to copy what it needs before it returns. `pause` calls `suspend` and drops anything not yet flushed. `resume` calls `resume` and does not replay. `stop` calls `dispose`.
+
+[`src/WebAudio.ts`](src/WebAudio.ts) is the browser sink. A cue is either a tone (`wave`, MIDI `note`, `ms`, `gain`) or an already-decoded buffer (`sample`, `gain`). `lane: "music"` holds one voice until the next music cue. `gain: 0` on that lane releases it. SFX voices are capped and never steal the music voice. The host decodes a downloaded file before `createEngine` and stores the buffer on the cue. The terminal host passes no sink.
 
 ### Cells
 

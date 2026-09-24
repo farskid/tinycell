@@ -6,10 +6,27 @@ import {
   keyOf,
   packCell,
   type App,
+  type CueQueue,
   type Engine,
   type InputQueue,
   type Surface,
 } from "../../src/engine.ts";
+
+export const Cue = {
+  Shot: 1,
+  Alien: 2,
+  Saucer: 3,
+  Hurt: 4,
+  Wave: 5,
+  Wave2: 11,
+  Over: 12,
+  Dive: 10,
+  March0: 6,
+  March1: 7,
+  March2: 8,
+  March3: 9,
+  Silence: 255,
+} as const;
 
 const W = 48;
 const H = 32;
@@ -39,9 +56,7 @@ const SHIELD_N = BUNKERS * SHIELD_CELLS;
 const SHIELD_X0 = 4;
 const SHIELD_PITCH = 11;
 const SHIELD_Y = 23;
-const SHAPE = [
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1,
-] as const;
+const SHAPE = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1] as const;
 
 const MAX_SHOTS = 3;
 const SAUCER_W = 3;
@@ -89,8 +104,13 @@ const SAUCER_CELL = packCell(0x20, Color.Default, Color.BrightMagenta);
 const SHIELD_CELL = packCell(0x20, Color.Default, Color.White);
 const GROUND = packCell(0x20, Color.Default, Color.BrightBlack);
 
-const SAVE_VER = 3;
-const PAYLOAD = 186;
+const DIVE_DUR = 56;
+const DIVE_FIRST = 8;
+const DIVE_EVERY = 5;
+const DIVE_BULGE = 12;
+
+const SAVE_VER = 4;
+const PAYLOAD = 197;
 
 type Phase = "idle" | "run" | "dead";
 
@@ -107,6 +127,7 @@ interface State {
   playerX: number;
   invuln: number;
   alienStep: number;
+  marchNote: number;
   eWait: number;
   saucerWait: number;
   anim: number;
@@ -131,6 +152,14 @@ interface State {
   saucerDir: number;
   saucerPts: number;
   shields: Uint8Array;
+  diveOn: number;
+  diveI: number;
+  diveT: number;
+  diveWait: number;
+  diveSide: number;
+  diveSx: number;
+  diveSy: number;
+  diveAim: number;
 }
 
 function fillShields(s: State): void {
@@ -144,7 +173,7 @@ function fillShields(s: State): void {
 function reset(s: State): void {
   s.phase = "idle";
   s.score = 0;
-  s.lives = 3;
+  s.lives = 300;
   s.wave = 1;
   s.formX = START_X;
   s.formY = START_Y;
@@ -154,6 +183,7 @@ function reset(s: State): void {
   s.playerX = START_PX;
   s.invuln = 0;
   s.alienStep = 0;
+  s.marchNote = 0;
   s.eWait = 0;
   s.saucerWait = 0;
   s.anim = 0;
@@ -167,7 +197,19 @@ function reset(s: State): void {
   s.saucerX = 0;
   s.saucerDir = 1;
   s.saucerPts = 0;
+  clearDive(s);
+  s.diveWait = DIVE_FIRST;
   fillShields(s);
+}
+
+function clearDive(s: State): void {
+  s.diveOn = 0;
+  s.diveI = 0;
+  s.diveT = 0;
+  s.diveSide = 1;
+  s.diveSx = 0;
+  s.diveSy = 0;
+  s.diveAim = 0;
 }
 
 function alienEvery(alive: number, wave: number): number {
@@ -183,6 +225,7 @@ function shotEvery(alive: number, wave: number): number {
 function countAlive(s: State): number {
   let n = 0;
   for (let i = 0; i < ALIEN_N; i++) if (s.aliens[i]) n++;
+  if (s.diveOn) n++;
   return n;
 }
 
@@ -217,7 +260,9 @@ function alienAt(s: State, x: number, y: number): number {
   return s.aliens[i] ? i : -1;
 }
 
-function bounds(s: State): { left: number; right: number; bottom: number } | null {
+function bounds(
+  s: State,
+): { left: number; right: number; bottom: number } | null {
   let left = W;
   let right = -1;
   let bottom = -1;
@@ -269,13 +314,21 @@ function clearDrop(s: State): void {
   s.dropTick = 0;
 }
 
-function killPlayer(s: State): void {
+function sound(cues: CueQueue | undefined, id: number): void {
+  cues?.push(id);
+}
+
+function killPlayer(s: State, cues?: CueQueue): void {
+  sound(cues, Cue.Hurt);
   s.lives--;
   s.pN = 0;
   s.eN = 0;
   s.playerX = START_PX;
   if (s.lives <= 0) {
     s.phase = "dead";
+    sound(cues, Cue.Over);
+    sound(cues, Cue.Silence);
+    clearDive(s);
     s.gun = 0;
     s.gunTtl = 0;
     clearDrop(s);
@@ -298,7 +351,13 @@ function removePShot(s: State, i: number): void {
   s.pN = last;
 }
 
-function pushShot(s: State, x: number, y: number, gun: number, dir: number): void {
+function pushShot(
+  s: State,
+  x: number,
+  y: number,
+  gun: number,
+  dir: number,
+): void {
   s.pX[s.pN] = x;
   s.pY[s.pN] = y;
   s.pGun[s.pN] = gun;
@@ -306,7 +365,7 @@ function pushShot(s: State, x: number, y: number, gun: number, dir: number): voi
   s.pN++;
 }
 
-function arm(s: State, fire: boolean): void {
+function arm(s: State, fire: boolean, cues?: CueQueue): void {
   if (!fire) return;
   const x = s.playerX + 1;
   const y = PLAYER_Y - 1;
@@ -316,6 +375,7 @@ function arm(s: State, fire: boolean): void {
     pushShot(s, x, y, GUN_SPLASH, -1);
     pushShot(s, x, y, GUN_SPLASH, 0);
     pushShot(s, x, y, GUN_SPLASH, 1);
+    sound(cues, Cue.Shot);
     return;
   }
   const cap = s.gun === GUN_FAST ? MAX_PLAYER_SHOTS : 1;
@@ -323,6 +383,7 @@ function arm(s: State, fire: boolean): void {
   if (cancelShot(s, x, y)) return;
   pushShot(s, x, y, s.gun, 0);
   if (s.gun === GUN_FAST) s.cool = FAST_GAP;
+  sound(cues, Cue.Shot);
 }
 
 function placeDrop(s: State, x: number, y: number): void {
@@ -345,11 +406,95 @@ function maybeDrop(s: State, alien: number): void {
   );
 }
 
-function strike(s: State, x: number, y: number, gun: number): boolean {
+function divePos(s: State): { x: number; y: number } {
+  const t = s.diveT / DIVE_DUR;
+  const u = t > 1 ? 1 : t;
+  const bulge = Math.sin(u * Math.PI) * DIVE_BULGE * s.diveSide;
+  return {
+    x: s.diveSx + (s.diveAim - s.diveSx) * u + bulge,
+    y: s.diveSy + (PLAYER_Y - s.diveSy) * u,
+  };
+}
+
+function diveCell(s: State): { x: number; y: number } | null {
+  if (!s.diveOn) return null;
+  const p = divePos(s);
+  return { x: p.x | 0, y: p.y | 0 };
+}
+
+function shotHitsDive(s: State, x: number, y: number): boolean {
+  const at = diveCell(s);
+  if (!at || y !== at.y) return false;
+  return x >= at.x && x < at.x + AW;
+}
+
+function tickDive(s: State, cues?: CueQueue): void {
+  if (!s.diveOn) return;
+  s.diveAim += (s.playerX + 1 - s.diveAim) * 0.06;
+  s.diveT++;
+  const at = diveCell(s);
+  if (!at) return;
+  if (at.y >= 0 && at.y < H) {
+    for (let dx = 0; dx < AW; dx++) damageShield(s, at.x + dx, at.y);
+  }
+  const onShip =
+    at.y >= PLAYER_Y - 1 &&
+    at.y <= PLAYER_Y &&
+    at.x < s.playerX + PLAYER_W &&
+    at.x + AW > s.playerX;
+  if (onShip && s.invuln <= 0) {
+    s.diveOn = 0;
+    killPlayer(s, cues);
+    return;
+  }
+  if (s.diveT >= DIVE_DUR || at.y > PLAYER_Y) s.diveOn = 0;
+}
+
+function tryDive(s: State, cues?: CueQueue): void {
+  if (s.phase !== "run" || s.diveOn) return;
+  if (s.diveWait > 0) {
+    s.diveWait--;
+    return;
+  }
+  const col = s.marchNote % COLS;
+  let idx = -1;
+  for (let r = ROWS - 1; r >= 0; r--) {
+    const i = r * COLS + col;
+    if (!s.aliens[i]) continue;
+    idx = i;
+    break;
+  }
+  if (idx < 0) return;
+  s.aliens[idx] = 0;
+  s.diveOn = 1;
+  s.diveI = idx;
+  s.diveT = 0;
+  s.diveSx = s.formX + (idx % COLS) * PITCH_X;
+  s.diveSy = s.formY + ((idx / COLS) | 0) * PITCH_Y;
+  s.diveSide = s.diveSx + 1 < s.playerX ? 1 : -1;
+  s.diveAim = s.playerX + 1;
+  s.diveWait = DIVE_EVERY;
+  sound(cues, Cue.Dive);
+}
+
+function strike(
+  s: State,
+  x: number,
+  y: number,
+  gun: number,
+  cues?: CueQueue,
+): boolean {
+  if (shotHitsDive(s, x, y)) {
+    s.score += ROW_PTS[(s.diveI / COLS) | 0]!;
+    sound(cues, Cue.Alien);
+    s.diveOn = 0;
+    return gun !== GUN_PIERCE;
+  }
   if (damageShield(s, x, y)) return true;
   const hit = alienAt(s, x, y);
   if (hit >= 0) {
     s.aliens[hit] = 0;
+    sound(cues, Cue.Alien);
     s.score += ROW_PTS[(hit / COLS) | 0]!;
     maybeDrop(s, hit);
     return gun !== GUN_PIERCE;
@@ -362,6 +507,7 @@ function strike(s: State, x: number, y: number, gun: number): boolean {
     x < s.saucerX + SAUCER_W
   ) {
     s.score += s.saucerPts;
+    sound(cues, Cue.Saucer);
     if (!s.dropOn) placeDrop(s, s.saucerX, SAUCER_Y);
     s.saucerOn = 0;
     s.saucerWait = 0;
@@ -370,7 +516,7 @@ function strike(s: State, x: number, y: number, gun: number): boolean {
   return false;
 }
 
-function movePlayerBullets(s: State): void {
+function movePlayerBullets(s: State, cues?: CueQueue): void {
   for (let i = s.pN - 1; i >= 0; i--) {
     const gun = s.pGun[i]!;
     const step = gun === GUN_FAST ? FAST_STEP : BULLET_STEP;
@@ -384,7 +530,11 @@ function movePlayerBullets(s: State): void {
         gone = true;
         break;
       }
-      if (gun === GUN_SPLASH && dir !== 0 && ((PLAYER_Y - 1 - y) % CONE_EVERY) === 0) {
+      if (
+        gun === GUN_SPLASH &&
+        dir !== 0 &&
+        (PLAYER_Y - 1 - y) % CONE_EVERY === 0
+      ) {
         x += dir;
       }
       if (x < 0 || x >= W) {
@@ -394,7 +544,7 @@ function movePlayerBullets(s: State): void {
       }
       s.pX[i] = x;
       s.pY[i] = y;
-      if (strike(s, x, y, gun)) {
+      if (strike(s, x, y, gun, cues)) {
         removePShot(s, i);
         gone = true;
       }
@@ -432,7 +582,7 @@ function moveDrop(s: State): void {
   if (overlapsShip(s)) takeDrop(s);
 }
 
-function moveEnemyBullets(s: State): void {
+function moveEnemyBullets(s: State, cues?: CueQueue): void {
   for (let i = s.eN - 1; i >= 0; i--) {
     const x = s.eX[i]!;
     let y = s.eY[i]!;
@@ -445,7 +595,7 @@ function moveEnemyBullets(s: State): void {
       drop = true;
     } else if (y === PLAYER_Y && x >= s.playerX && x < s.playerX + PLAYER_W) {
       if (s.invuln <= 0) {
-        killPlayer(s);
+        killPlayer(s, cues);
         return;
       }
       drop = true;
@@ -515,7 +665,7 @@ function tickSaucer(s: State): void {
   s.saucerPts = SAUCER_PTS[(Math.random() * SAUCER_PTS.length) | 0]!;
 }
 
-function stepAliens(s: State): void {
+function stepAliens(s: State, cues?: CueQueue): void {
   const box = bounds(s);
   if (!box) return;
   if (box.left + s.formDir < 0 || box.right + s.formDir >= W) {
@@ -527,24 +677,34 @@ function stepAliens(s: State): void {
   s.march ^= 1;
   crushShields(s);
   const next = bounds(s);
-  if (next && next.bottom >= PLAYER_Y) s.phase = "dead";
+  if (next && next.bottom >= PLAYER_Y) {
+    s.phase = "dead";
+    sound(cues, Cue.Over);
+    sound(cues, Cue.Silence);
+    clearDive(s);
+  }
 }
 
-function nextWave(s: State): void {
+function nextWave(s: State, cues?: CueQueue): void {
+  sound(cues, Cue.Wave);
+  sound(cues, Cue.Wave2);
   if (s.wave < 99) s.wave++;
   s.formX = START_X;
   s.formY = START_Y;
   s.formDir = 1;
   s.march = 0;
   s.alienStep = 0;
+  s.marchNote = 0;
   s.aliens.fill(1);
   s.pN = 0;
   s.eN = 0;
   s.saucerOn = 0;
   s.saucerWait = 0;
+  clearDive(s);
+  s.diveWait = DIVE_FIRST;
 }
 
-function simulate(s: State, dir: number, fire: boolean): void {
+function simulate(s: State, dir: number, fire: boolean, cues?: CueQueue): void {
   s.anim++;
   if (s.invuln > 0) s.invuln--;
   if (s.gunTtl > 0) {
@@ -553,15 +713,16 @@ function simulate(s: State, dir: number, fire: boolean): void {
   }
   if (s.cool > 0) s.cool--;
   slide(s, dir);
-  arm(s, fire);
-  movePlayerBullets(s);
+  arm(s, fire, cues);
+  movePlayerBullets(s, cues);
   moveDrop(s);
   if (countAlive(s) === 0) {
-    nextWave(s);
+    nextWave(s, cues);
     return;
   }
   if (s.invuln > 0) return;
-  moveEnemyBullets(s);
+  moveEnemyBullets(s, cues);
+  tickDive(s, cues);
   if (s.phase !== "run") return;
   tryEnemyShot(s);
   tickSaucer(s);
@@ -569,7 +730,10 @@ function simulate(s: State, dir: number, fire: boolean): void {
   s.alienStep++;
   if (s.alienStep >= alienEvery(countAlive(s), s.wave)) {
     s.alienStep = 0;
-    stepAliens(s);
+    sound(cues, Cue.March0 + (s.marchNote & 3));
+    s.marchNote++;
+    stepAliens(s, cues);
+    if (s.phase === "run") tryDive(s, cues);
   }
 }
 
@@ -672,9 +836,24 @@ function draw(s: State, out: Surface): void {
     if (!s.aliens[i]) continue;
     const x = s.formX + (i % COLS) * PITCH_X;
     const y = s.formY + ((i / COLS) | 0) * PITCH_Y;
-    const cell = packCell(0x20, Color.Default, rowColor((i / COLS) | 0, s.march));
+    const cell = packCell(
+      0x20,
+      Color.Default,
+      rowColor((i / COLS) | 0, s.march),
+    );
     out.set(x, y, cell);
     out.set(x + 1, y, cell);
+  }
+  const diving = diveCell(s);
+  if (diving && diving.y >= 0 && diving.y < H) {
+    const cell = packCell(
+      0x20,
+      Color.Default,
+      rowColor((s.diveI / COLS) | 0, 1),
+    );
+    if (diving.x >= 0 && diving.x < W) out.set(diving.x, diving.y, cell);
+    if (diving.x + 1 >= 0 && diving.x + 1 < W)
+      out.set(diving.x + 1, diving.y, cell);
   }
   for (let i = 0; i < s.eN; i++) out.set(s.eX[i]!, s.eY[i]!, BOMB);
   for (let i = 0; i < s.pN; i++) {
@@ -807,6 +986,17 @@ function writeState(s: State, out: Uint8Array): number {
   writeU16(out, i, s.dropY);
   i += 2;
   out[i++] = s.dropTick;
+  out[i++] = s.diveOn;
+  out[i++] = s.diveI;
+  out[i++] = s.diveT;
+  out[i++] = s.diveWait;
+  out[i++] = s.diveSide & 0xff;
+  writeU16(out, i, s.diveSx);
+  i += 2;
+  writeU16(out, i, s.diveSy);
+  i += 2;
+  writeU16(out, i, s.diveAim);
+  i += 2;
   out.set(s.aliens, i);
   i += ALIEN_N;
   out.set(s.shields, i);
@@ -885,6 +1075,18 @@ function readState(
   const dropY = readI16(blob, i);
   i += 2;
   const dropTick = blob[i++]!;
+  const diveOn = blob[i++]!;
+  const diveI = blob[i++]!;
+  const diveT = blob[i++]!;
+  const diveWait = blob[i++]!;
+  const diveSide = readI8(blob, i);
+  i++;
+  const diveSx = readI16(blob, i);
+  i += 2;
+  const diveSy = readI16(blob, i);
+  i += 2;
+  const diveAim = readI16(blob, i);
+  i += 2;
   if (
     lives > 5 ||
     wave < 1 ||
@@ -916,7 +1118,17 @@ function readState(
         dropX < 0 ||
         dropX > W - DROP_W ||
         dropY < 0 ||
-        dropY >= H)
+        dropY >= H) ||
+    diveOn > 1 ||
+    (diveOn === 1 && (diveI >= ALIEN_N || diveT > DIVE_DUR)) ||
+    diveWait > DIVE_FIRST ||
+    (diveSide !== -1 && diveSide !== 1) ||
+    diveSx < -W ||
+    diveSx > W ||
+    diveSy < -1 ||
+    diveSy > H ||
+    diveAim < -W ||
+    diveAim > W
   ) {
     return false;
   }
@@ -977,7 +1189,16 @@ function readState(
   s.dropX = dropX;
   s.dropY = dropY;
   s.dropTick = dropTick;
+  s.diveOn = diveOn;
+  s.diveI = diveI;
+  s.diveT = diveT;
+  s.diveWait = diveWait;
+  s.diveSide = diveSide;
+  s.diveSx = diveSx;
+  s.diveSy = diveSy;
+  s.diveAim = diveAim;
   s.aliens.set(blob.subarray(i, alienEnd));
+  if (diveOn && diveI < ALIEN_N) s.aliens[diveI] = 0;
   s.shields.set(blob.subarray(alienEnd, shieldEnd));
   return true;
 }
@@ -1017,6 +1238,7 @@ export function createSpaceInvadersApp(): App {
     playerX: START_PX,
     invuln: 0,
     alienStep: 0,
+    marchNote: 0,
     eWait: 0,
     saucerWait: 0,
     anim: 0,
@@ -1041,12 +1263,20 @@ export function createSpaceInvadersApp(): App {
     saucerDir: 1,
     saucerPts: 0,
     shields: new Uint8Array(SHIELD_N),
+    diveOn: 0,
+    diveI: 0,
+    diveT: 0,
+    diveWait: DIVE_FIRST,
+    diveSide: 1,
+    diveSx: 0,
+    diveSy: 0,
+    diveAim: 0,
   };
   reset(state);
 
   return {
     size: { w: W, h: H + HUD_H },
-    tick(input, engine: Engine) {
+    tick(input, engine: Engine, cues?: CueQueue) {
       const ev = readKeys(input);
       if (ev.quit) {
         engine.stop();
@@ -1061,7 +1291,7 @@ export function createSpaceInvadersApp(): App {
         state.phase = "run";
         if (!ev.fire) return;
       }
-      simulate(state, ev.dir, ev.fire);
+      simulate(state, ev.dir, ev.fire, cues);
     },
     view(out) {
       draw(state, out);
