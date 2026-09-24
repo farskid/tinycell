@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   Attr,
   Color,
+  CueQueue,
   InputQueue,
   Key,
   Surface,
@@ -14,13 +15,18 @@ import {
   type App,
   type Engine,
 } from "../../src/engine.ts";
-import { createGame2048App } from "./Game2048.ts";
+import { Cue, createGame2048App } from "./Game2048.ts";
 
 const engine = { stop() {} } as Engine;
 const SAVE = 29;
 
 const STUCK = [
   2, 4, 2, 4, 4, 2, 4, 2, 2, 4, 2, 4, 4, 2, 4, 2,
+];
+
+/** One left-merge that leaves a full board with no further moves. */
+const LAST_MOVE = [
+  2, 4, 8, 16, 4, 8, 16, 32, 8, 16, 32, 64, 16, 32, 128, 128,
 ];
 
 function writeU32(out: Uint8Array, i: number, v: number): void {
@@ -94,6 +100,16 @@ function decode(buf: Uint8Array) {
     ttl: buf[12]!,
     board,
   };
+}
+
+function heard(app: App, key: Key | null): number[] {
+  const input = new InputQueue();
+  if (key) input.push(keyEvent(key));
+  const cues = new CueQueue();
+  app.tick(input, engine, cues);
+  const ids: number[] = [];
+  for (let i = 0; i < cues.length; i++) ids.push(cues.at(i));
+  return ids;
 }
 
 function press(app: App, ...keys: Key[]): void {
@@ -381,4 +397,63 @@ test("snapshot round-trips and rejects a short or bad buffer", () => {
   const dealt = decode(snap(next));
   assert.equal(dealt.score, 0);
   assert.equal(dealt.board.filter((v) => v !== 0).length, 2);
+});
+
+test("a merging slide pushes Slide and Merge", () => {
+  const app = createGame2048App();
+  assert.deepEqual(heard(app, null), [Cue.Pad]);
+  load(app, [2, 2, 0, 0]);
+  assert.deepEqual(heard(app, Key.Left), [Cue.Slide, Cue.Merge]);
+});
+
+test("a rejected move pushes only Bump", () => {
+  const app = createGame2048App();
+  heard(app, null);
+  load(app, [2, 4, 8, 16]);
+  assert.deepEqual(heard(app, Key.Left), [Cue.Bump]);
+});
+
+test("won flips once to Win", () => {
+  const app = createGame2048App();
+  heard(app, null);
+  load(app, [1024, 1024]);
+  const win = heard(app, Key.Left);
+  assert.deepEqual(win, [Cue.Slide, Cue.Merge, Cue.Win, Cue.PadWin]);
+  idle(app, 8);
+  const again = heard(app, Key.Right);
+  assert.ok(!again.includes(Cue.Win));
+  assert.ok(again.includes(Cue.Slide) || again.includes(Cue.Bump));
+});
+
+test("a board that cannot move after the slide pushes Over once", () => {
+  const app = createGame2048App();
+  heard(app, null);
+  load(app, LAST_MOVE);
+  const over = heard(app, Key.Left);
+  assert.deepEqual(over, [Cue.Slide, Cue.Merge, Cue.Over, Cue.Silence]);
+  assert.equal(decode(snap(app)).phase, 1);
+  assert.deepEqual(heard(app, null), []);
+  assert.deepEqual(heard(app, Key.Left), []);
+});
+
+test("music themes push once per change", () => {
+  const app = createGame2048App();
+  assert.deepEqual(heard(app, null), [Cue.Pad]);
+  assert.deepEqual(heard(app, null), []);
+  load(app, [1024, 1024]);
+  assert.deepEqual(heard(app, Key.Left), [
+    Cue.Slide,
+    Cue.Merge,
+    Cue.Win,
+    Cue.PadWin,
+  ]);
+  assert.deepEqual(heard(app, null), []);
+  load(app, LAST_MOVE);
+  assert.deepEqual(heard(app, Key.Left), [
+    Cue.Slide,
+    Cue.Merge,
+    Cue.Over,
+    Cue.Silence,
+  ]);
+  assert.deepEqual(heard(app, null), []);
 });

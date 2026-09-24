@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   Color,
+  CueQueue,
   InputQueue,
   Key,
   Surface,
@@ -11,16 +12,22 @@ import {
   type App,
   type Engine,
 } from "../../src/engine.ts";
-import { createSpaceInvadersApp } from "./SpaceInvaders.ts";
+import { Cue, createSpaceInvadersApp } from "./SpaceInvaders.ts";
 
 const engine = { stop() {} } as Engine;
 
 function frames(app: App, key: Key | null, n: number): void {
-  for (let i = 0; i < n; i++) {
-    const input = new InputQueue();
-    if (key) input.push(keyEvent(key));
-    app.tick(input, engine);
-  }
+  for (let i = 0; i < n; i++) heard(app, key);
+}
+
+function heard(app: App, key: Key | null): number[] {
+  const input = new InputQueue();
+  if (key) input.push(keyEvent(key));
+  const cues = new CueQueue();
+  app.tick(input, engine, cues);
+  const ids: number[] = [];
+  for (let i = 0; i < cues.length; i++) ids.push(cues.at(i));
+  return ids;
 }
 
 function paint(app: App): Surface {
@@ -87,6 +94,40 @@ test("a centered shot scores before the fleet steps", () => {
   frames(app, Key.Enter, 1);
   frames(app, Key.Space, 15);
   assert.equal(scoreOf(app), 10);
+});
+
+test("a shot, an alien, and the march each push a cue", () => {
+  const app = createSpaceInvadersApp();
+  assert.deepEqual(heard(app, Key.Enter), []);
+  const ids: number[] = [];
+  for (let i = 0; i < 20; i++) ids.push(...heard(app, Key.Space));
+  assert.ok(ids.includes(Cue.Shot));
+  assert.ok(ids.includes(Cue.Alien));
+  assert.ok(ids.includes(Cue.March0));
+});
+
+test("a diver leaves the formation, curves down, and cues the dive", () => {
+  const app = createSpaceInvadersApp();
+  frames(app, Key.Enter, 1);
+  const ids: number[] = [];
+  let y0 = -1;
+  for (let i = 0; i < 200 && !ids.includes(Cue.Dive); i++) {
+    ids.push(...heard(app, Key.Left));
+  }
+  assert.ok(ids.includes(Cue.Dive));
+  for (let i = 0; i < 24; i++) heard(app, null);
+  const surface = paint(app);
+  for (let y = 12; y < app.size.h - 2; y++) {
+    for (let x = 0; x < surface.w; x++) {
+      const bg = cellBg(surface.cells[y * surface.w + x]!);
+      if (bg === Color.BrightYellow || bg === Color.BrightGreen) {
+        y0 = y;
+        break;
+      }
+    }
+    if (y0 >= 0) break;
+  }
+  assert.ok(y0 >= 12);
 });
 
 test("a bunker eats a shot aimed at it", () => {

@@ -5,6 +5,8 @@ import {
   keyOf,
   packCell,
   type App,
+  type CueQueue,
+  type Engine,
   type InputQueue,
   type Surface,
 } from "../../src/engine.ts";
@@ -17,6 +19,17 @@ import {
   type Fx,
   type Slide,
 } from "../fx.ts";
+
+export const Cue = {
+  Slide: 1,
+  Merge: 2,
+  Bump: 3,
+  Win: 4,
+  Over: 5,
+  Pad: 6,
+  PadWin: 7,
+  Silence: 255,
+} as const;
 
 const N = 4;
 const TW = 7;
@@ -255,22 +268,50 @@ function sliding(fx: readonly Fx<Body>[]): boolean {
   return false;
 }
 
-function play(state: State, dir: Key): void {
+function sound(cues: CueQueue | undefined, id: number): void {
+  cues?.push(id);
+}
+
+function themeOf(state: State): number {
+  if (state.phase === "over") return Cue.Silence;
+  if (state.won) return Cue.PadWin;
+  return Cue.Pad;
+}
+
+function driveMusic(
+  state: State,
+  cues: CueQueue | undefined,
+  lastTheme: { id: number },
+): void {
+  const next = themeOf(state);
+  if (next === lastTheme.id) return;
+  lastTheme.id = next;
+  sound(cues, next);
+}
+
+function play(state: State, dir: Key, cues?: CueQueue): void {
   const moved = slide(state.board, dir, state.fx);
   if (!moved.moved) {
+    sound(cues, Cue.Bump);
     state.nudge = nudgeBy(dir);
     return;
   }
+  sound(cues, Cue.Slide);
+  if (moved.gained > 0) sound(cues, Cue.Merge);
   state.nudge = null;
   state.scoreFrom = state.score;
   state.bestFrom = state.best;
   state.score += moved.gained;
   if (state.score > state.best) state.best = state.score;
-  if (has2048(state.board)) state.won = true;
+  if (!state.won && has2048(state.board)) {
+    state.won = true;
+    sound(cues, Cue.Win);
+  }
   spawn(state, POP_AT);
   if (!canMove(state.board)) {
     state.phase = "over";
     state.pending = 0;
+    sound(cues, Cue.Over);
   }
 }
 
@@ -530,11 +571,12 @@ export function createGame2048App(): App {
     pending: 0,
     nudge: null,
   };
+  const lastTheme = { id: 0 };
   reset(state, false);
 
   return {
     size: { w: BOARD_W, h: GRID_H },
-    tick(input, engine) {
+    tick(input, engine: Engine, cues?: CueQueue) {
       fxAge(state.fx);
       ageNudge(state);
       const keys = readKeys(input);
@@ -544,15 +586,16 @@ export function createGame2048App(): App {
       }
       if (state.phase === "over") {
         if (keys.retry) reset(state, true);
-        return;
+      } else {
+        if (keys.dir) state.pending = keys.dir;
+        if (!sliding(state.fx) && state.pending) {
+          state.fx.length = 0;
+          const dir = state.pending;
+          state.pending = 0;
+          play(state, dir, cues);
+        }
       }
-      if (keys.dir) state.pending = keys.dir;
-      if (sliding(state.fx)) return;
-      if (!state.pending) return;
-      state.fx.length = 0;
-      const dir = state.pending;
-      state.pending = 0;
-      play(state, dir);
+      driveMusic(state, cues, lastTheme);
     },
     view(out) {
       draw(state, out);

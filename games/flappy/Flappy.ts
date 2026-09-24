@@ -5,11 +5,18 @@ import {
   keyOf,
   packCell,
   type App,
+  type CueQueue,
   type Engine,
   type InputQueue,
   type Surface,
 } from "../../src/engine.ts";
 import { fxAge, fxEaseOut, fxSlideAt, type Fx } from "../fx.ts";
+
+export const Cue = {
+  Flap: 1,
+  Score: 2,
+  Hit: 3,
+} as const;
 
 const W = 40;
 const H = 24;
@@ -133,7 +140,12 @@ function fall(s: State): void {
   }
 }
 
-function startHop(s: State): void {
+function sound(cues: CueQueue | undefined, id: number): void {
+  cues?.push(id);
+}
+
+function startHop(s: State, cues?: CueQueue): void {
+  sound(cues, Cue.Flap);
   const row = s.birdY | 0;
   s.vy = 0;
   s.hop.length = 0;
@@ -162,8 +174,8 @@ function placeHop(s: State): boolean {
   return true;
 }
 
-function step(s: State, flap: boolean): void {
-  if (flap) startHop(s);
+function step(s: State, flap: boolean, cues?: CueQueue): void {
+  if (flap) startHop(s, cues);
   else fxAge(s.hop);
   if (!placeHop(s)) {
     s.vy += GRAVITY;
@@ -197,6 +209,7 @@ function step(s: State, flap: boolean): void {
       pipe.scored = true;
       if (s.score < 0xffff) s.score++;
       if (s.score > s.best) s.best = s.score;
+      sound(cues, Cue.Score);
     }
     if (left + PIPE_W <= 0) {
       s.pipes.splice(i, 1);
@@ -209,6 +222,7 @@ function step(s: State, flap: boolean): void {
   if (hit) {
     s.phase = "dead";
     s.hop.length = 0;
+    sound(cues, Cue.Hit);
   }
 }
 
@@ -399,7 +413,7 @@ export function createFlappyApp(): App {
 
   return {
     size: { w: W, h: H },
-    tick(input, engine: Engine) {
+    tick(input, engine: Engine, cues?: CueQueue) {
       const ev = readKeys(input);
       if (ev.quit) {
         engine.stop();
@@ -414,7 +428,7 @@ export function createFlappyApp(): App {
         reset(state);
         state.best = best;
         state.phase = "run";
-        step(state, true);
+        step(state, true, cues);
         return;
       }
       if (state.phase === "ready") {
@@ -424,7 +438,7 @@ export function createFlappyApp(): App {
         }
         state.phase = "run";
       }
-      step(state, ev.flap);
+      step(state, ev.flap, cues);
     },
     view(out) {
       draw(state, out);

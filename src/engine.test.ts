@@ -3,11 +3,13 @@ import { mock, test } from "node:test";
 import {
   charEvent,
   createEngine,
+  CueQueue,
   InputQueue,
   keyEvent,
   Key,
   keyOf,
   type App,
+  type AudioSink,
   type InputQueue as InputQueueType,
   type InputSource,
 } from "./engine.ts";
@@ -312,4 +314,266 @@ test("grid is min(app.size, painter.size) and onResize follows the host", () => 
   hostCb!(20, 30);
   assert.deepEqual(resized.at(-1), [20, 10]);
   engine.stop();
+});
+
+function fakeAudio() {
+  const played: number[][] = [];
+  let ready = true;
+  let suspended = 0;
+  let resumed = 0;
+  let disposed = 0;
+  const sink: AudioSink = {
+    get ready() {
+      return ready;
+    },
+    play(cues) {
+      const ids: number[] = [];
+      for (let i = 0; i < cues.length; i++) ids.push(cues.at(i));
+      played.push(ids);
+    },
+    suspend() {
+      suspended++;
+    },
+    resume() {
+      resumed++;
+    },
+    dispose() {
+      disposed++;
+    },
+  };
+  return {
+    sink,
+    played,
+    setReady(v: boolean) {
+      ready = v;
+    },
+    get suspended() {
+      return suspended;
+    },
+    get resumed() {
+      return resumed;
+    },
+    get disposed() {
+      return disposed;
+    },
+  };
+}
+
+test("cue ring keeps ids 1..255 and drops the oldest when full", () => {
+  const ring = new CueQueue();
+  ring.push(0);
+  ring.push(256);
+  ring.push(1.5);
+  ring.push(-1);
+  assert.equal(ring.length, 0);
+  for (let i = 1; i <= 17; i++) ring.push(i);
+  assert.equal(ring.length, 16);
+  assert.equal(ring.at(0), 2);
+  assert.equal(ring.at(15), 17);
+  assert.equal(ring.at(16), 0);
+  ring.clear();
+  assert.equal(ring.length, 0);
+});
+
+test("one wake flushes every cue from its ticks in one play", () => {
+  mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  try {
+    const audio = fakeAudio();
+    let n = 0;
+    const engine = createEngine({
+      app: app({
+        tick(_input, _engine, cues) {
+          n++;
+          cues!.push(n);
+          if (n === 2) cues!.push(10);
+        },
+      }),
+      painter: fakePainter(),
+      audio: audio.sink,
+      tickHz: 20,
+      maxTicksPerWake: 4,
+    });
+    engine.start();
+    mock.timers.tick(50);
+    assert.deepEqual(audio.played, [[1]]);
+    mock.timers.tick(200);
+    assert.deepEqual(audio.played[1], [2, 10, 3, 4, 5]);
+    engine.stop();
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("a sink that is not ready drops the wake and does not replay it", () => {
+  mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  try {
+    const audio = fakeAudio();
+    audio.setReady(false);
+    let n = 0;
+    const engine = createEngine({
+      app: app({
+        tick(_input, _engine, cues) {
+          n++;
+          cues!.push(n);
+        },
+      }),
+      painter: fakePainter(),
+      audio: audio.sink,
+      tickHz: 20,
+    });
+    engine.start();
+    mock.timers.tick(50);
+    assert.deepEqual(audio.played, []);
+    audio.setReady(true);
+    mock.timers.tick(50);
+    assert.deepEqual(audio.played, [[2]]);
+    engine.stop();
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("pause suspends without playing and resume does not replay", () => {
+  mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  try {
+    const audio = fakeAudio();
+    const engine = createEngine({
+      app: app({
+        tick(_input, _engine, cues) {
+          cues!.push(1);
+        },
+      }),
+      painter: fakePainter(),
+      audio: audio.sink,
+      tickHz: 20,
+    });
+    engine.start();
+    mock.timers.tick(50);
+    assert.equal(audio.played.length, 1);
+    engine.pause();
+    assert.equal(audio.suspended, 1);
+    mock.timers.tick(500);
+    assert.equal(audio.played.length, 1);
+    engine.resume();
+    assert.equal(audio.resumed, 1);
+    assert.equal(audio.played.length, 1);
+    mock.timers.tick(50);
+    assert.equal(audio.played.length, 2);
+    engine.stop();
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("stop disposes the sink and drops a cue pushed on the quit tick", () => {
+  mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  try {
+    const audio = fakeAudio();
+    const engine = createEngine({
+      app: app({
+        tick(_input, eng, cues) {
+          cues!.push(4);
+          eng.stop();
+        },
+      }),
+      painter: fakePainter(),
+      audio: audio.sink,
+      tickHz: 20,
+    });
+    engine.start();
+    mock.timers.tick(50);
+    assert.deepEqual(audio.played, []);
+    assert.equal(audio.disposed, 1);
+    engine.stop();
+    assert.equal(audio.disposed, 1);
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("an omitted sink still ticks", () => {
+  mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  try {
+    let ticks = 0;
+    const engine = createEngine({
+      app: app({
+        tick(_input, _engine, cues) {
+          ticks++;
+          cues!.push(1);
+        },
+      }),
+      painter: fakePainter(),
+      tickHz: 20,
+    });
+    engine.start();
+    mock.timers.tick(50);
+    assert.equal(ticks, 1);
+    engine.pause();
+    engine.resume();
+    engine.stop();
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("a throwing sink still clears the queue", () => {
+  mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  try {
+    let n = 0;
+    const seen: number[][] = [];
+    const sink: AudioSink = {
+      ready: true,
+      play(cues) {
+        const ids: number[] = [];
+        for (let i = 0; i < cues.length; i++) ids.push(cues.at(i));
+        seen.push(ids);
+        if (seen.length === 1) throw new Error("sink down");
+      },
+      suspend() {},
+      resume() {},
+      dispose() {},
+    };
+    const engine = createEngine({
+      app: app({
+        tick(_input, _engine, cues) {
+          n++;
+          cues!.push(n);
+        },
+      }),
+      painter: fakePainter(),
+      audio: sink,
+      tickHz: 20,
+    });
+    engine.start();
+    assert.throws(() => mock.timers.tick(50), /sink down/);
+    mock.timers.tick(50);
+    assert.deepEqual(seen, [[1], [2]]);
+    engine.stop();
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("snapshot bytes ignore cues", () => {
+  mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  try {
+    const engine = createEngine({
+      app: app({
+        tick(_input, _engine, cues) {
+          cues!.push(9);
+        },
+      }),
+      painter: fakePainter(),
+      audio: fakeAudio().sink,
+      tickHz: 20,
+    });
+    const before = engine.snapshot();
+    engine.start();
+    mock.timers.tick(50);
+    const after = engine.snapshot();
+    assert.deepEqual(after.subarray(9), before.subarray(9));
+    engine.stop();
+  } finally {
+    mock.timers.reset();
+  }
 });

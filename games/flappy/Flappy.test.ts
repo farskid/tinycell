@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   Color,
+  CueQueue,
   InputQueue,
   Key,
   Surface,
@@ -11,16 +12,22 @@ import {
   type App,
   type Engine,
 } from "../../src/engine.ts";
-import { createFlappyApp } from "./Flappy.ts";
+import { Cue, createFlappyApp } from "./Flappy.ts";
 
 const engine = { stop() {} } as Engine;
 
 function frames(app: App, key: Key | null, n: number): void {
-  for (let i = 0; i < n; i++) {
-    const input = new InputQueue();
-    if (key) input.push(keyEvent(key));
-    app.tick(input, engine);
-  }
+  for (let i = 0; i < n; i++) heard(app, key);
+}
+
+function heard(app: App, key: Key | null): number[] {
+  const input = new InputQueue();
+  if (key) input.push(keyEvent(key));
+  const cues = new CueQueue();
+  app.tick(input, engine, cues);
+  const ids: number[] = [];
+  for (let i = 0; i < cues.length; i++) ids.push(cues.at(i));
+  return ids;
 }
 
 function paint(app: App): Surface {
@@ -134,6 +141,28 @@ test("staying in the gap scores and a retry keeps the best", () => {
   assert.equal(restarted?.dead, false);
   assert.equal(scoreOf(app), 0);
   assert.equal(bestOf(app), 1);
+});
+
+test("flap, score, and hit each push one cue", () => {
+  const app = createFlappyApp();
+  assert.deepEqual(heard(app, null), []);
+  assert.deepEqual(heard(app, Key.Space), [Cue.Flap]);
+
+  const scored: number[] = [];
+  for (let i = 0; i < 500 && !scored.includes(Cue.Score); i++) {
+    const at = bird(app);
+    assert.equal(at?.dead, false);
+    scored.push(...heard(app, !at || at.row > 8 ? Key.Space : null));
+  }
+  assert.equal(scored.filter((id) => id === Cue.Score).length, 1);
+  assert.equal(scored.includes(Cue.Hit), false);
+
+  const died: number[] = [];
+  for (let i = 0; i < 200 && !died.includes(Cue.Hit); i++) {
+    died.push(...heard(app, null));
+  }
+  assert.equal(died.filter((id) => id === Cue.Hit).length, 1);
+  assert.equal(died.includes(Cue.Flap), false);
 });
 
 test("snapshot roundtrips and a bad blob returns to ready", () => {
