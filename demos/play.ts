@@ -1,3 +1,5 @@
+import { PARENT_RESUME } from "../games/parentResume.ts";
+
 const STAGE_KEY = "tinycell-stage";
 const STAGE_MIN = 220;
 const SAMPLES_MIN = 240;
@@ -31,6 +33,7 @@ export function bindPlay(root: ParentNode): void {
     if (!(machine instanceof HTMLElement)) continue;
     veil.addEventListener("click", () => {
       iframe.focus();
+      iframe.contentWindow?.postMessage(PARENT_RESUME, location.origin);
     });
     iframe.addEventListener("focus", () => {
       veil.hidden = true;

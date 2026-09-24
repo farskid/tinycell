@@ -2,6 +2,7 @@ import { createEngine, Key } from "../../src/engine.ts";
 import { createWebCanvas } from "../../src/CanvasPainter.ts";
 import { createWebEvent } from "../../src/WebEvent.ts";
 import { createWebAudio } from "../../src/WebAudio.ts";
+import { resumeWhenParentAsks } from "../parentResume.ts";
 import { bindWebPersist, createWebPersist } from "../WebPersist.ts";
 import { createSpaceInvadersApp, Cue } from "./SpaceInvaders.ts";
 
@@ -30,11 +31,7 @@ function bootEngine(
   canvas: HTMLCanvasElement,
   saved: Uint8Array | null,
 ) {
-  const opts = {
-    app,
-    painter: createWebCanvas(canvas, { cellPx: CELL }),
-    inputs: [createWebEvent(window, { hold: [Key.Left, Key.Right, Key.Space] })],
-    audio: createWebAudio(new AudioContext(), {
+  const audio = createWebAudio(new AudioContext(), {
       unlock: window,
       cues: {
         [Cue.Shot]: { wave: "square", note: 90, ms: 40, gain: 0.25 },
@@ -51,7 +48,13 @@ function bootEngine(
         [Cue.March3]: { wave: "square", note: 34, gain: 0.12, lane: "music" },
         [Cue.Silence]: { wave: "square", note: 0, gain: 0, lane: "music" },
       },
-    }),
+  });
+  resumeWhenParentAsks(audio);
+  const opts = {
+    app,
+    painter: createWebCanvas(canvas, { cellPx: CELL }),
+    inputs: [createWebEvent(window, { hold: [Key.Left, Key.Right, Key.Space] })],
+    audio,
     tickHz: 30,
   };
   if (!saved) return createEngine(opts);

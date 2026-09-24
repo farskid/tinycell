@@ -2,6 +2,7 @@ import { createEngine } from "../../src/engine.ts";
 import { createWebCanvas } from "../../src/CanvasPainter.ts";
 import { createWebEvent } from "../../src/WebEvent.ts";
 import { createWebAudio } from "../../src/WebAudio.ts";
+import { resumeWhenParentAsks } from "../parentResume.ts";
 import { bindWebPersist, createWebPersist } from "../WebPersist.ts";
 import { createSnakeApp, Cue } from "./Snake.ts";
 
@@ -30,11 +31,7 @@ function bootEngine(
   canvas: HTMLCanvasElement,
   saved: Uint8Array | null,
 ) {
-  const opts = {
-    app,
-    painter: createWebCanvas(canvas, { cellPx: CELL }),
-    inputs: [createWebEvent(window)],
-    audio: createWebAudio(new AudioContext(), {
+  const audio = createWebAudio(new AudioContext(), {
       unlock: window,
       cues: {
         [Cue.Eat]: { wave: "square", note: 79, ms: 60, gain: 0.35 },
@@ -50,7 +47,13 @@ function bootEngine(
         [Cue.Tune7]: { wave: "triangle", note: 52, gain: 0.14, lane: "music" },
         [Cue.Silence]: { wave: "square", note: 0, gain: 0, lane: "music" },
       },
-    }),
+  });
+  resumeWhenParentAsks(audio);
+  const opts = {
+    app,
+    painter: createWebCanvas(canvas, { cellPx: CELL }),
+    inputs: [createWebEvent(window)],
+    audio,
     tickHz: 40,
   };
   if (!saved) return createEngine(opts);

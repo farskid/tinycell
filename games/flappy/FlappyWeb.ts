@@ -2,6 +2,7 @@ import { createEngine } from "../../src/engine.ts";
 import { createWebCanvas } from "../../src/CanvasPainter.ts";
 import { createWebEvent } from "../../src/WebEvent.ts";
 import { createWebAudio } from "../../src/WebAudio.ts";
+import { resumeWhenParentAsks } from "../parentResume.ts";
 import { bindWebPersist, createWebPersist } from "../WebPersist.ts";
 import { createFlappyApp, Cue } from "./Flappy.ts";
 
@@ -29,18 +30,20 @@ function bootEngine(
   canvas: HTMLCanvasElement,
   saved: Uint8Array | null,
 ) {
+  const audio = createWebAudio(new AudioContext(), {
+    unlock: window,
+    cues: {
+      [Cue.Flap]: { wave: "square", note: 76, ms: 50, gain: 0.4 },
+      [Cue.Score]: { wave: "triangle", note: 88, ms: 90, gain: 0.35 },
+      [Cue.Hit]: { wave: "noise", note: 0, ms: 180, gain: 0.5 },
+    },
+  });
+  resumeWhenParentAsks(audio);
   const opts = {
     app,
     painter: createWebCanvas(canvas, { cellPx: CELL }),
     inputs: [createWebEvent(window)],
-    audio: createWebAudio(new AudioContext(), {
-      unlock: window,
-      cues: {
-        [Cue.Flap]: { wave: "square", note: 76, ms: 50, gain: 0.4 },
-        [Cue.Score]: { wave: "triangle", note: 88, ms: 90, gain: 0.35 },
-        [Cue.Hit]: { wave: "noise", note: 0, ms: 180, gain: 0.5 },
-      },
-    }),
+    audio,
     tickHz: 30,
   };
   if (!saved) return createEngine(opts);

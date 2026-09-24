@@ -2,6 +2,7 @@ import { createEngine } from "../../src/engine.ts";
 import { createWebCanvas } from "../../src/CanvasPainter.ts";
 import { createWebEvent } from "../../src/WebEvent.ts";
 import { createWebAudio } from "../../src/WebAudio.ts";
+import { resumeWhenParentAsks } from "../parentResume.ts";
 import { createWebSwipe } from "../../src/WebSwipe.ts";
 import { bindWebPersist, createWebPersist } from "../WebPersist.ts";
 import { createGame2048App, Cue } from "./Game2048.ts";
@@ -32,11 +33,7 @@ function bootEngine(
   canvas: HTMLCanvasElement,
   saved: Uint8Array | null,
 ) {
-  const opts = {
-    app,
-    painter: createWebCanvas(canvas, { cellPx: CELL }),
-    inputs: [createWebEvent(window), createWebSwipe(window)],
-    audio: createWebAudio(new AudioContext(), {
+  const audio = createWebAudio(new AudioContext(), {
       unlock: window,
       cues: {
         [Cue.Slide]: { wave: "square", note: 62, ms: 40, gain: 0.2 },
@@ -48,7 +45,13 @@ function bootEngine(
         [Cue.PadWin]: { wave: "triangle", note: 60, gain: 0.08, lane: "music" },
         [Cue.Silence]: { wave: "square", note: 0, gain: 0, lane: "music" },
       },
-    }),
+  });
+  resumeWhenParentAsks(audio);
+  const opts = {
+    app,
+    painter: createWebCanvas(canvas, { cellPx: CELL }),
+    inputs: [createWebEvent(window), createWebSwipe(window)],
+    audio,
     tickHz: 60,
   };
   if (!saved) return createEngine(opts);
