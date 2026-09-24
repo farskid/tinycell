@@ -102,11 +102,7 @@ interface App {
 }
 ```
 
-<<<<<<< HEAD
 `tick` reads the queue, mutates game state, and may push cue ids. A function that ignores `cues` is still an `App`. `view` writes cells into the surface the engine owns. `size` is the grid the game wants. The painter may be smaller, and the engine uses the smaller of the two. `snapshot` and `hydrate` are the save path.
-=======
-`tick` reads the queue, mutates game state, and pushes cue ids. `view` writes cells into the surface the engine owns. A function that ignores `cues` is still an `App`. `size` is the grid the game wants. The painter may be smaller, and the engine uses the smaller of the two. `snapshot` and `hydrate` are the save path.
->>>>>>> 8982f1f11710719ab570984f605cafc954ab3135
 
 ### Snapshot
 
@@ -154,7 +150,6 @@ interface AudioSink {
 }
 ```
 
-<<<<<<< HEAD
 `push` keeps ids `1..255` and drops anything else. The queue holds 16 ids. A push past that drops the oldest. The engine reads the queue once per wake, then clears it. `play` has to copy what it needs before it returns. `pause` calls `suspend` and drops anything not yet flushed. `resume` calls `resume` and does not replay. `stop` calls `dispose`. Omit `audio` and the same ticks run in silence.
 
 The game pushes an id. The host decides what it sounds like. [`src/WebAudio.ts`](src/WebAudio.ts) maps that id to a tone or an already-decoded buffer.
@@ -182,11 +177,6 @@ audio: createWebAudio(new AudioContext(), {
 ```
 
 `wave` is `square`, `triangle`, `sawtooth`, or `noise`. `note` is a MIDI number. `69` is A4. `noise` ignores it. `ms` is how long an effect rings. `lane: "music"` holds one voice until the next music cue, so `ms` does not apply. `gain: 0` on that lane releases it. SFX voices are capped and never steal the music voice. A downloaded file is decoded before `createEngine` and stored as `sample` on the cue. The terminal host passes no sink.
-=======
-`push` keeps ids `1..255` and drops anything else. The queue holds 16 ids. A push past that drops the oldest. The engine reads the queue once per wake, then clears it. `play` has to copy what it needs before it returns. `pause` calls `suspend` and drops anything not yet flushed. `resume` calls `resume` and does not replay. `stop` calls `dispose`.
-
-[`src/WebAudio.ts`](src/WebAudio.ts) is the browser sink. A cue is either a tone (`wave`, MIDI `note`, `ms`, `gain`) or an already-decoded buffer (`sample`, `gain`). `lane: "music"` holds one voice until the next music cue. `gain: 0` on that lane releases it. SFX voices are capped and never steal the music voice. The host decodes a downloaded file before `createEngine` and stores the buffer on the cue. The terminal host passes no sink.
->>>>>>> 8982f1f11710719ab570984f605cafc954ab3135
 
 ### Cells
 
