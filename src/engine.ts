@@ -191,8 +191,55 @@ export interface InputSource {
   attach(queue: InputQueue): () => void;
 }
 
+const CUE_CAP = 16;
+
+export class CueQueue {
+  private readonly buf = new Uint8Array(CUE_CAP);
+  private head = 0;
+  private len = 0;
+
+  push(id: number): void {
+    const n = id | 0;
+    if (n !== id || n < 1 || n > 255) return;
+    if (this.len === CUE_CAP) {
+      this.head++;
+      if (this.head === CUE_CAP) this.head = 0;
+      this.len--;
+    }
+    let i = this.head + this.len;
+    if (i >= CUE_CAP) i -= CUE_CAP;
+    this.buf[i] = n;
+    this.len++;
+  }
+
+  get length(): number {
+    return this.len;
+  }
+
+  at(i: number): number {
+    if (i < 0 || i >= this.len) return 0;
+    let j = this.head + i;
+    if (j >= CUE_CAP) j -= CUE_CAP;
+    return this.buf[j]!;
+  }
+
+  clear(): void {
+    this.head = 0;
+    this.len = 0;
+  }
+}
+
+export interface AudioSink {
+  readonly ready: boolean;
+  /** Read `cues` before returning. The engine clears the queue after this call. */
+  play(cues: CueQueue): void;
+  suspend(): void;
+  resume(): void;
+  dispose(): void;
+}
+
 export interface App {
-  tick(input: InputQueue, engine: Engine): void;
+  tick(input: InputQueue, engine: Engine, cues?: CueQueue): void;
   view(out: Surface): void;
   readonly size: { readonly w: number; readonly h: number };
   onResize?(w: number, h: number): void;
@@ -212,6 +259,7 @@ export interface EngineOptions {
   app: App;
   painter: Painter;
   inputs?: InputSource[];
+  audio?: AudioSink;
   tickHz?: number;
   maxTicksPerWake?: number;
   resume?: Uint8Array;
@@ -232,6 +280,8 @@ type Phase = "idle" | "running" | "paused" | "stopped";
 export function createEngine(opts: EngineOptions): Engine {
   const app = opts.app;
   const painter = opts.painter;
+  const audio = opts.audio;
+  const cues = new CueQueue();
   const hz = opts.tickHz ?? 20;
   if (!(hz > 0)) throw new Error("tickHz must be > 0");
   const step = Math.max(1, Math.round(1000 / hz));
@@ -291,17 +341,30 @@ export function createEngine(opts: EngineOptions): Engine {
     if (acc > cap) acc = cap;
     let ran = 0;
     while (phase === "running" && acc >= step && ran < maxTicks) {
-      app.tick(queue, api);
+      app.tick(queue, api, cues);
       queue.clear();
       tickCount = (tickCount + 1) >>> 0;
       acc -= step;
       ran++;
     }
-    if (ran > 0 && phase === "running" && painter.ready) {
-      app.view(surface);
-      painter.paint(surface);
+    let failed: unknown;
+    try {
+      if (ran > 0) {
+        try {
+          if (phase === "running" && audio?.ready) audio.play(cues);
+        } finally {
+          cues.clear();
+        }
+      }
+      if (ran > 0 && phase === "running" && painter.ready) {
+        app.view(surface);
+        painter.paint(surface);
+      }
+    } catch (err) {
+      failed = err;
     }
     if (phase === "running") arm(acc > 0 && acc < step ? step - acc : step);
+    if (failed) throw failed;
   }
 
   function clearTimer(): void {
@@ -322,11 +385,14 @@ export function createEngine(opts: EngineOptions): Engine {
       if (phase !== "running") return;
       phase = "paused";
       clearTimer();
+      cues.clear();
+      audio?.suspend();
     },
     resume() {
       if (phase !== "paused") return;
       phase = "running";
       last = Date.now();
+      audio?.resume();
       arm(acc > 0 && acc < step ? step - acc : step);
     },
     stop() {
@@ -337,7 +403,11 @@ export function createEngine(opts: EngineOptions): Engine {
         for (const detach of detachers) detach();
       } finally {
         detachers.length = 0;
-        painter.dispose();
+        try {
+          painter.dispose();
+        } finally {
+          audio?.dispose();
+        }
       }
     },
     snapshot() {
