@@ -236,7 +236,7 @@
   <header>
     <div class="mark">Cell engine</div>
     <nav class="marks">
-      <span class="mark">Canvas · ANSI</span>
+      <span class="mark">Canvas · ANSI · cues</span>
       <a class="mark" href="https://github.com/farskid/tinycell">
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
           <path fill="currentColor"
@@ -250,7 +250,8 @@
   <h1>TinyCell</h1>
   <p class="lede">
     A TypeScript engine for games made of cells. <code>tick</code> updates the grid,
-    <code>view</code> draws it. One <code>App</code> runs on a canvas and in a terminal.
+    <code>view</code> draws it. The same tick can push a cue id. The browser plays it.
+    The terminal stays silent. One <code>App</code> runs on both.
   </p>
 
   <section class="games">
@@ -282,7 +283,7 @@
   </section>
 
   <footer class="wire">
-    <div><code>InputSource → tick → view → Painter</code></div>
+    <div><code>InputSource → tick → view → Painter · cues → AudioSink</code></div>
     <div>Open a game.</div>
   </footer>
 </div>

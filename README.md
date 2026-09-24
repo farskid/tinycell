@@ -51,6 +51,7 @@ function createEngine(opts: {
   app: App;
   painter: Painter;
   inputs?: InputSource[];
+  audio?: AudioSink;
   tickHz?: number; // default 20, must be > 0
   maxTicksPerWake?: number; // default 4, at least 1
   resume?: Uint8Array;
@@ -90,7 +91,7 @@ On a wake the engine calls `app.tick`, then clears the queue, once per step that
 
 ```ts
 interface App {
-  tick(input: InputQueue, engine: Engine): void;
+  tick(input: InputQueue, engine: Engine, cues?: CueQueue): void;
   view(out: Surface): void;
   readonly size: { readonly w: number; readonly h: number };
   onResize?(w: number, h: number): void;
@@ -99,7 +100,7 @@ interface App {
 }
 ```
 
-`tick` reads the queue and mutates game state. `view` writes cells into the surface the engine owns. `size` is the grid the game wants. The painter may be smaller, and the engine uses the smaller of the two. `snapshot` and `hydrate` are the save path.
+`tick` reads the queue, mutates game state, and may push cue ids. A function that ignores `cues` is still an `App`. `view` writes cells into the surface the engine owns. `size` is the grid the game wants. The painter may be smaller, and the engine uses the smaller of the two. `snapshot` and `hydrate` are the save path.
 
 ### Snapshot
 
@@ -127,6 +128,53 @@ interface Painter {
 ```
 
 `paint` receives the whole front surface. Diffing belongs to the painter. `onResize` is how the painter tells the engine its size changed. `resize` is the engine telling the painter which grid to draw. `dispose` runs from `stop`.
+
+### Audio
+
+```ts
+class CueQueue {
+  push(id: number): void;
+  readonly length: number;
+  at(i: number): number;
+  clear(): void;
+}
+
+interface AudioSink {
+  readonly ready: boolean;
+  play(cues: CueQueue): void;
+  suspend(): void;
+  resume(): void;
+  dispose(): void;
+}
+```
+
+`push` keeps ids `1..255` and drops anything else. The queue holds 16 ids. A push past that drops the oldest. The engine reads the queue once per wake, then clears it. `play` has to copy what it needs before it returns. `pause` calls `suspend` and drops anything not yet flushed. `resume` calls `resume` and does not replay. `stop` calls `dispose`. Omit `audio` and the same ticks run in silence.
+
+The game pushes an id. The host decides what it sounds like. [`src/WebAudio.ts`](src/WebAudio.ts) maps that id to a tone or an already-decoded buffer.
+
+```ts
+export const Cue = { Flap: 1, Score: 2, Hit: 3, Silence: 255 } as const;
+
+function sound(cues: CueQueue | undefined, id: number): void {
+  cues?.push(id);
+}
+
+// inside tick, on the flap edge
+sound(cues, Cue.Flap);
+
+// web host, next to painter
+audio: createWebAudio(new AudioContext(), {
+  unlock: window,
+  cues: {
+    [Cue.Flap]: { wave: "square", note: 76, ms: 50, gain: 0.4 },
+    [Cue.Score]: { wave: "triangle", note: 88, ms: 90, gain: 0.35 },
+    [Cue.Hit]: { wave: "noise", note: 0, ms: 180, gain: 0.5 },
+    [Cue.Silence]: { wave: "square", note: 0, gain: 0, lane: "music" },
+  },
+}),
+```
+
+`wave` is `square`, `triangle`, `sawtooth`, or `noise`. `note` is a MIDI number. `69` is A4. `noise` ignores it. `ms` is how long an effect rings. `lane: "music"` holds one voice until the next music cue, so `ms` does not apply. `gain: 0` on that lane releases it. SFX voices are capped and never steal the music voice. A downloaded file is decoded before `createEngine` and stored as `sample` on the cue. The terminal host passes no sink.
 
 ### Cells
 
@@ -174,7 +222,7 @@ An event is `[kind:8][code:24]`. `keyEvent(key)` and `charEvent(codepoint)` pack
 
 ## Demo Games
 
-The same games are running at [farskid.github.io/tinycell](https://farskid.github.io/tinycell/). Each demo page is the live game next to the `App` and both hosts, so you can read the rules and play them.
+The same games are running at [farskid.github.io/tinycell](https://farskid.github.io/tinycell/). Each demo page is the live game next to the `App` and both hosts, so you can read the rules and play them. The web host maps cue ids to tones. The terminal host passes no sink, so the same ticks are silent.
 
 [![Space Invaders: a formation of colored cells, four bunkers, and a ship](demos/invaders/demo.png)](https://farskid.github.io/tinycell/demos/invaders/)
 
