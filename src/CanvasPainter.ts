@@ -18,6 +18,18 @@ interface Canvas2D {
   textBaseline: string;
   fillRect(x: number, y: number, w: number, h: number): void;
   fillText(text: string, x: number, y: number): void;
+  beginPath(): void;
+  moveTo(x: number, y: number): void;
+  bezierCurveTo(
+    c1x: number,
+    c1y: number,
+    c2x: number,
+    c2y: number,
+    x: number,
+    y: number,
+  ): void;
+  closePath(): void;
+  fill(): void;
   setTransform(
     a: number,
     b: number,
@@ -280,6 +292,16 @@ class WebCanvasPainter implements Painter {
     ctx.fillStyle = bgCss;
     ctx.fillRect(x0, y0, px, px);
     const ch = cellChar(cell);
+    if (ch === 0x25a1) {
+      ctx.fillStyle = fgCss;
+      strokeBox(ctx, x0, y0, px);
+      return;
+    }
+    if (ch === 0x2665) {
+      ctx.fillStyle = fgCss;
+      fillHeart(ctx, x0, y0, px);
+      return;
+    }
     const pair = asciiPair(ch);
     if (pair) {
       ctx.fillStyle = fgCss;
@@ -298,6 +320,34 @@ class WebCanvasPainter implements Painter {
       ctx.fillRect(x0, y0 + px - t, px, t);
     }
   }
+}
+
+function fillHeart(ctx: Canvas2D, x: number, y: number, px: number): void {
+  const l = x + px * 0.08;
+  const r = x + px * 0.92;
+  const mid = x + px * 0.5;
+  const top = y + px * 0.28;
+  ctx.beginPath();
+  ctx.moveTo(mid, y + px * 0.86);
+  ctx.bezierCurveTo(l - px * 0.08, y + px * 0.48, l, y + px * 0.08, mid - px * 0.16, top);
+  ctx.bezierCurveTo(mid - px * 0.05, y + px * 0.4, mid, y + px * 0.46, mid, y + px * 0.46);
+  ctx.bezierCurveTo(mid, y + px * 0.46, mid + px * 0.05, y + px * 0.4, mid + px * 0.16, top);
+  ctx.bezierCurveTo(r, y + px * 0.08, r + px * 0.08, y + px * 0.48, mid, y + px * 0.86);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function strokeBox(
+  ctx: Canvas2D,
+  x: number,
+  y: number,
+  px: number,
+): void {
+  const t = Math.max(1, px >> 3);
+  ctx.fillRect(x, y, px, t);
+  ctx.fillRect(x, y + px - t, px, t);
+  ctx.fillRect(x, y + t, t, px - 2 * t);
+  ctx.fillRect(x + px - t, y + t, t, px - 2 * t);
 }
 
 function asciiPair(ch: number): string | null {

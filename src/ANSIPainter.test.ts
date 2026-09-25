@@ -147,6 +147,18 @@ test("cellW 2 does not pad a fullwidth glyph", () => {
   painter.dispose();
 });
 
+test("a heart stays a glyph under cellW 2", () => {
+  const out = fakeOut();
+  const painter = createANSIPainter(out.stream, { cellW: 2 });
+  const surface = new Surface(1, 1);
+  surface.fill(EMPTY_CELL);
+  painter.resize(1, 1);
+  surface.set(0, 0, packCell(0x2665));
+  painter.paint(surface);
+  assert.equal(latin1(out.chunks.at(-1)!), "\x1b[1;1H\x1b[0m\xe2\x99\xa5 ");
+  painter.dispose();
+});
+
 test("BMP glyphs emit UTF-8", () => {
   const out = fakeOut();
   const painter = createANSIPainter(out.stream);

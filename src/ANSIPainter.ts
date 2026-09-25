@@ -192,6 +192,11 @@ class ANSIPainter implements Painter {
   }
 
   private putCell(ch: number): void {
+    if (ch === 0x2665) {
+      this.putGlyph(ch);
+      for (let k = 1; k < this.cellW; k++) this.put(0x20);
+      return;
+    }
     const a = ch & 0xff;
     const b = (ch >>> 8) & 0xff;
     if (

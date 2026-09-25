@@ -13,6 +13,7 @@ import {
 
 type Op =
   | { op: "fillRect"; x: number; y: number; w: number; h: number; fill: string }
+  | { op: "fill"; fill: string }
   | {
       op: "fillText";
       text: string;
@@ -49,6 +50,13 @@ function fakeCanvas(w: number, h: number) {
         fill: this.fillStyle,
         font: this.font,
       });
+    },
+    beginPath() {},
+    moveTo() {},
+    bezierCurveTo() {},
+    closePath() {},
+    fill() {
+      ops.push({ op: "fill", fill: this.fillStyle });
     },
     setTransform() {},
   };
@@ -151,6 +159,46 @@ test("glyphs are centered fillText and spaces are not", () => {
       font: "16px monospace",
     },
   ]);
+  painter.dispose();
+});
+
+test("a hollow square is a cell-sized frame, not a glyph", () => {
+  const view = fakeCanvas(16, 16);
+  const painter = createWebCanvas(view.canvas, { cellPx: 16 });
+  const surface = new Surface(1, 1);
+  surface.fill(EMPTY_CELL);
+  painter.resize(1, 1);
+  const mark = view.ops.length;
+  surface.set(0, 0, packCell(0x25a1, Color.Blue, Color.Black));
+  painter.paint(surface);
+  assert.equal(
+    view.ops.slice(mark).some((op) => op.op === "fillText"),
+    false,
+  );
+  assert.deepEqual(view.ops.slice(mark), [
+      { op: "fillRect", x: 0, y: 0, w: 16, h: 16, fill: "rgb(0,0,0)" },
+      { op: "fillRect", x: 0, y: 0, w: 16, h: 2, fill: "rgb(0,0,170)" },
+      { op: "fillRect", x: 0, y: 14, w: 16, h: 2, fill: "rgb(0,0,170)" },
+      { op: "fillRect", x: 0, y: 2, w: 2, h: 12, fill: "rgb(0,0,170)" },
+      { op: "fillRect", x: 14, y: 2, w: 2, h: 12, fill: "rgb(0,0,170)" },
+    ],
+  );
+  painter.dispose();
+});
+
+test("a heart is a filled shape, not an ASCII pair", () => {
+  const view = fakeCanvas(16, 16);
+  const painter = createWebCanvas(view.canvas, { cellPx: 16 });
+  const surface = new Surface(1, 1);
+  surface.fill(EMPTY_CELL);
+  painter.resize(1, 1);
+  surface.set(0, 0, packCell(0x2665, Color.BrightRed, Color.Blue));
+  painter.paint(surface);
+  assert.equal(
+    view.ops.some((op) => op.op === "fillText"),
+    false,
+  );
+  assert.ok(view.ops.some((op) => op.op === "fill" && op.fill === "rgb(255,85,85)"));
   painter.dispose();
 });
 
