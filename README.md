@@ -9,13 +9,28 @@ import { createWebCanvas, createWebEvent, createWebGamepad, createWebSwipe, crea
 import { fxAge, fxSlideAt } from "tinycell/fx";
 ```
 
-`tinycell/web` is five files behind one entry. A bundler that honors `sideEffects: false` drops the ones you do not import. `tinycell/fx` is not on the core entry, so a Node app that only imports `tinycell` does not load it.
+## Packages
+
+`npm install tinycell` is the only install. The four names are entries in that package.
+
+| Entry | What it is |
+| --- | --- |
+| `tinycell` | The engine. `createEngine`, `Surface`, `Color`, `Attr`, `Key`, the cue queue. No painter, no DOM, no terminal. |
+| `tinycell/terminal` | `createANSIPainter` and `createTTY`. |
+| `tinycell/web` | `createWebCanvas`, `createWebEvent`, `createWebGamepad`, `createWebSwipe`, `createWebAudio`. |
+| `tinycell/fx` | Slide, pop, shake, and shift. No engine import. |
+
+You pay for an entry only when something imports it. `import { createEngine } from "tinycell"` does not load the terminal, the web hosts, or `fx`.
+
+`tinycell/web` is five files behind one barrel, and the package sets `sideEffects` to `false`. A bundler that honors that flag (Vite, Rollup, webpack, esbuild) drops a file you never name. `createWebCanvas` does not pull swipe or audio. `import * as web from "tinycell/web"` pulls all five.
+
+Node does not tree-shake. `import { createWebCanvas } from "tinycell/web"` evaluates every file the barrel re-exports. That entry is for bundlers. `tinycell/fx` is a separate entry so a terminal game that only imports `tinycell` does not parse the animation helpers.
 
 The slogan is the whole design: a **host-blind fixed-timestep cell engine**. One `App` owns the rules and the grid. The host only paints, feeds keys, plays cues, and stores bytes. [`src/engine.ts`](src/engine.ts) imports nothing from Node, the DOM, or a canvas. Terminal and browser are adapters. A native port would be the same job: rewrite the adapters, keep the `App`.
 
 ## Why a grid
 
-Most small engines grow a scene: sprites, a draw list, a camera, then a different renderer for every platform. TinyCell refuses that. If it is not a cell, it is not on screen. Snake, Invaders, 2048, Flappy, Tetris, Block Blast, and Mario are all the same kind of object: a rectangle of packed cells, rewritten every tick.
+Most small engines grow a scene: sprites, a draw list, a camera, then a different renderer for every platform. TinyCell refuses that. If it is not a cell, it is not on screen. Snake, Invaders, 2048, Flappy, Tetris, and Mario are all the same kind of object: a rectangle of packed cells, rewritten every tick.
 
 That constraint is the point. A game written this way has nowhere to hide a `document` call or a `stdout` write. Logic and picture share a clock, and neither knows whether the next paint is ANSI or a `<canvas>`. Swap the painter and the same rules run somewhere else.
 
@@ -254,10 +269,6 @@ The same games are running at [farskid.github.io/tinycell](https://farskid.githu
 [![Tetris: a falling piece above a colored stack](demos/tetris/demo.png)](https://farskid.github.io/tinycell/demos/tetris/)
 
 [Tetris](https://farskid.github.io/tinycell/demos/tetris/). Arrows move, up rotates, space drops. A 10×20 well, a next queue, and line clears, still drawn as cells.
-
-[![Block Blast: colored pieces on an 8×8 board](demos/block-blast/demo.png)](https://farskid.github.io/tinycell/demos/block-blast/)
-
-[Block Blast](https://farskid.github.io/tinycell/demos/block-blast/). Arrows move a piece, space places it, tab or 1 2 3 picks from the hand. Fill a row or a column and it clears.
 
 [![Mario: a red runner on green ground](demos/mario/demo.png)](https://farskid.github.io/tinycell/demos/mario/)
 
