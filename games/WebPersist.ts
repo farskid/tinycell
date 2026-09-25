@@ -1,4 +1,5 @@
-import type { Engine } from "../src/engine.ts";
+import type { Engine } from "tinycell";
+import { PARENT_PAUSE, PARENT_RESUME } from "./parentResume.ts";
 
 export function createWebPersist(key: string) {
   return {
@@ -26,20 +27,20 @@ export function bindWebPersist(
   persist: { writePersistedState(bytes: Uint8Array): void },
 ): void {
   const save = () => persist.writePersistedState(engine.snapshot());
-  const away = () => {
-    save();
-    engine.pause();
-  };
-  const back = () => {
-    if (document.visibilityState === "hidden" || !document.hasFocus()) return;
-    engine.resume();
-  };
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") away();
-    else back();
+    if (document.visibilityState === "hidden") {
+      save();
+      engine.pause();
+      return;
+    }
+    if (window.parent !== window && !document.hasFocus()) return;
+    engine.resume();
   });
-  window.addEventListener("blur", away);
-  window.addEventListener("focus", back);
+  window.addEventListener("message", (ev: MessageEvent) => {
+    if (ev.origin !== location.origin) return;
+    if (ev.data === PARENT_PAUSE) engine.pause();
+    else if (ev.data === PARENT_RESUME) engine.resume();
+  });
   window.addEventListener("pagehide", save);
 }
 

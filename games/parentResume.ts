@@ -1,3 +1,4 @@
+export const PARENT_PAUSE = "tinycell-pause";
 export const PARENT_RESUME = "tinycell-resume-audio";
 
 export function resumeWhenParentAsks(sink: { resume(): void }): void {
