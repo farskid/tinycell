@@ -19,7 +19,7 @@ export const Cue = {
   Clear: 4,
   Tetris: 5,
   Drop: 6,
-  Over: 7
+  Over: 7,
   Shake: 16,
   Tune0: 8,
   Tune1: 9,
