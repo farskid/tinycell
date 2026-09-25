@@ -18,6 +18,16 @@ export default defineConfig({
   root,
   // Relative URLs so the same build works at / and at /tinycell/ on Pages.
   base: "./",
+  // The site compiles the library from source. Package exports point at dist,
+  // and Pages never runs the library build before this one.
+  resolve: {
+    alias: [
+      { find: "tinycell/terminal", replacement: resolve(root, "src/terminal.ts") },
+      { find: "tinycell/web", replacement: resolve(root, "src/web.ts") },
+      { find: "tinycell/fx", replacement: resolve(root, "src/fx.ts") },
+      { find: /^tinycell$/, replacement: resolve(root, "src/engine.ts") },
+    ],
+  },
   server: {
     open: false,
     fs: { allow: [root] },
