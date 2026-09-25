@@ -30,7 +30,7 @@ The slogan is the whole design: a **host-blind fixed-timestep cell engine**. One
 
 ## Why a grid
 
-Most small engines grow a scene: sprites, a draw list, a camera, then a different renderer for every platform. TinyCell refuses that. If it is not a cell, it is not on screen. Snake, Invaders, 2048, Flappy, Tetris, and Mario are all the same kind of object: a rectangle of packed cells, rewritten every tick.
+Most small engines grow a scene: sprites, a draw list, a camera, then a different renderer for every platform. TinyCell refuses that. If it is not a cell, it is not on screen. Snake, Invaders, 2048, Flappy, and Tetris are all the same kind of object: a rectangle of packed cells, rewritten every tick.
 
 That constraint is the point. A game written this way has nowhere to hide a `document` call or a `stdout` write. Logic and picture share a clock, and neither knows whether the next paint is ANSI or a `<canvas>`. Swap the painter and the same rules run somewhere else.
 
@@ -269,7 +269,3 @@ The same games are running at [farskid.github.io/tinycell](https://farskid.githu
 [![Tetris: a falling piece above a colored stack](demos/tetris/demo.png)](https://farskid.github.io/tinycell/demos/tetris/)
 
 [Tetris](https://farskid.github.io/tinycell/demos/tetris/). Arrows move, up rotates, space drops. A 10×20 well, a next queue, and line clears, still drawn as cells.
-
-[![Mario: a red runner on green ground](demos/mario/demo.png)](https://farskid.github.io/tinycell/demos/mario/)
-
-[Mario](https://farskid.github.io/tinycell/demos/mario/). Arrows run, space hops. The hop is a fixed arc of cells. A pit, a brick, a pipe, one goomba, a flag.
