@@ -70,6 +70,7 @@
     "build": "vite build",
     "build:lib": "rm -rf dist && tsc -p tsconfig.build.json && node scripts/rewrite-dts.mjs",
     "prepublishOnly": "npm run build:lib",
+    "release": "node scripts/release.mjs",
     "preview": "vite preview",
     "test": "node --experimental-transform-types --test --test-concurrency=1 src/engine.test.ts src/ANSIPainter.test.ts src/TTY.test.ts src/CanvasPainter.test.ts src/WebEvent.test.ts src/WebGamepad.test.ts src/WebSwipe.test.ts src/WebAudio.test.ts src/fx.test.ts games/space-invaders/SpaceInvaders.test.ts games/flappy/Flappy.test.ts games/snake/Snake.test.ts games/2048/Game2048.test.ts games/tetris/Tetris.test.ts games/contra/Contra.test.ts",
     "typecheck": "tsc --noEmit"
