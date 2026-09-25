@@ -8,7 +8,7 @@
 
 export type Cell = number;
 
-export const enum Color {
+export enum Color {
   Default = 0,
   Black,
   Red,
@@ -28,7 +28,7 @@ export const enum Color {
   BrightWhite,
 }
 
-export const enum Attr {
+export enum Attr {
   None = 0,
   Bold = 1,
   Dim = 2,
@@ -159,7 +159,7 @@ export class InputQueue {
   }
 }
 
-export const enum Key {
+export enum Key {
   Up = 1,
   Down,
   Left,

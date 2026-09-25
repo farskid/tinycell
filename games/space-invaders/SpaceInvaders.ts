@@ -10,7 +10,7 @@ import {
   type Engine,
   type InputQueue,
   type Surface,
-} from "../../src/engine.ts";
+} from "tinycell";
 
 export const Cue = {
   Shot: 1,

@@ -1,8 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { createEngine } from "../../src/engine.ts";
-import { createANSIPainter } from "../../src/ANSIPainter.ts";
-import { createTTY } from "../../src/TTY.ts";
+import { createEngine } from "tinycell";
+import { createANSIPainter, createTTY } from "tinycell/terminal";
 import { bindFilePersist, createFilePersist } from "../FilePersist.ts";
 import { createSnakeApp } from "./Snake.ts";
 

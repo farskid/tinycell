@@ -2,11 +2,20 @@
 
 A TypeScript engine for games made of cells. `tick` updates the grid, `view` draws it. One `App` runs on a canvas and in a terminal.
 
+```ts
+import { createEngine } from "tinycell";
+import { createANSIPainter, createTTY } from "tinycell/terminal";
+import { createWebCanvas, createWebEvent, createWebGamepad, createWebSwipe, createWebAudio } from "tinycell/web";
+import { fxAge, fxSlideAt } from "tinycell/fx";
+```
+
+`tinycell/web` is five files behind one entry. A bundler that honors `sideEffects: false` drops the ones you do not import. `tinycell/fx` is not on the core entry, so a Node app that only imports `tinycell` does not load it.
+
 The slogan is the whole design: a **host-blind fixed-timestep cell engine**. One `App` owns the rules and the grid. The host only paints, feeds keys, plays cues, and stores bytes. [`src/engine.ts`](src/engine.ts) imports nothing from Node, the DOM, or a canvas. Terminal and browser are adapters. A native port would be the same job: rewrite the adapters, keep the `App`.
 
 ## Why a grid
 
-Most small engines grow a scene: sprites, a draw list, a camera, then a different renderer for every platform. TinyCell refuses that. If it is not a cell, it is not on screen. Snake, Invaders, 2048, Flappy, and Mario are all the same kind of object: a rectangle of packed cells, rewritten every tick.
+Most small engines grow a scene: sprites, a draw list, a camera, then a different renderer for every platform. TinyCell refuses that. If it is not a cell, it is not on screen. Snake, Invaders, 2048, Flappy, Tetris, Block Blast, and Mario are all the same kind of object: a rectangle of packed cells, rewritten every tick.
 
 That constraint is the point. A game written this way has nowhere to hide a `document` call or a `stdout` write. Logic and picture share a clock, and neither knows whether the next paint is ANSI or a `<canvas>`. Swap the painter and the same rules run somewhere else.
 
@@ -241,6 +250,14 @@ The same games are running at [farskid.github.io/tinycell](https://farskid.githu
 [![Flappy: a bird between green pipes](demos/flappy/demo.png)](https://farskid.github.io/tinycell/demos/flappy/)
 
 [Flappy](https://farskid.github.io/tinycell/demos/flappy/). Space flaps. One bird and scrolling columns, still drawn as cells.
+
+[![Tetris: a falling piece above a colored stack](demos/tetris/demo.png)](https://farskid.github.io/tinycell/demos/tetris/)
+
+[Tetris](https://farskid.github.io/tinycell/demos/tetris/). Arrows move, up rotates, space drops. A 10×20 well, a next queue, and line clears, still drawn as cells.
+
+[![Block Blast: colored pieces on an 8×8 board](demos/block-blast/demo.png)](https://farskid.github.io/tinycell/demos/block-blast/)
+
+[Block Blast](https://farskid.github.io/tinycell/demos/block-blast/). Arrows move a piece, space places it, tab or 1 2 3 picks from the hand. Fill a row or a column and it clears.
 
 [![Mario: a red runner on green ground](demos/mario/demo.png)](https://farskid.github.io/tinycell/demos/mario/)
 

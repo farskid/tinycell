@@ -8,9 +8,12 @@ import {
   fxEaseOut,
   fxLinear,
   fxPopU,
+  fxShakeAt,
+  fxShift,
   fxSlideAt,
   type Fx,
   type Pop,
+  type Shake,
   type Slide,
 } from "./fx.ts";
 
@@ -98,6 +101,49 @@ test("a pop runs from 0 to 1 after its delay", () => {
 
 test("a one-tick pop is 1", () => {
   assert.equal(fxPopU(pop({ delay: 0, dur: 1, age: 0 })), 1);
+});
+
+function shake(over: Partial<Shake> = {}): Shake {
+  return { amp: 2, delay: 0, dur: 4, age: 0, ...over };
+}
+
+test("a camera shake swings and rests on the last frame", () => {
+  const fx = shake();
+  assert.deepEqual(fxShakeAt(fx), { x: 2, y: 0 });
+  fx.age = 1;
+  assert.deepEqual(fxShakeAt(fx), { x: 0, y: 1 });
+  fx.age = 2;
+  assert.deepEqual(fxShakeAt(fx), { x: -1, y: 0 });
+  fx.age = 3;
+  assert.deepEqual(fxShakeAt(fx), { x: 0, y: 0 });
+  fx.age = 4;
+  assert.equal(fxShakeAt(fx), null);
+});
+
+test("a delayed shake stays hidden, then starts its swing", () => {
+  const fx = shake({ delay: 2 });
+  assert.equal(fxShakeAt(fx), null);
+  fx.age = 2;
+  assert.deepEqual(fxShakeAt(fx), { x: 2, y: 0 });
+  fx.age = 3;
+  assert.deepEqual(fxShakeAt(fx), { x: 0, y: 1 });
+});
+
+test("a one-tick shake is one offset, and zero amp is the origin", () => {
+  const once = fxShakeAt(shake({ dur: 1 }));
+  assert.ok(once);
+  assert.ok(once.x !== 0 || once.y !== 0);
+  assert.deepEqual(fxShakeAt(shake({ amp: 0 })), { x: 0, y: 0 });
+  assert.equal(fxShakeAt(shake({ dur: 0 })), null);
+});
+
+test("fxShift moves cells and clears the gap", () => {
+  const src = Uint32Array.from([1, 2, 3, 4, 5, 6]);
+  const dst = new Uint32Array(6);
+  fxShift(src, dst, 3, 2, 1, 0, 0);
+  assert.deepEqual([...dst], [0, 1, 2, 0, 4, 5]);
+  fxShift(src, dst, 3, 2, 0, -1, 9);
+  assert.deepEqual([...dst], [4, 5, 6, 9, 9, 9]);
 });
 
 test("easing keeps the endpoints and bends the middle", () => {

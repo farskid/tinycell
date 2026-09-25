@@ -1,6 +1,6 @@
 {
   "name": "tinycell",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Host-blind fixed-timestep cell engine. One App owns the rules and the grid; the host only paints, feeds keys, and stores bytes.",
   "author": "Farzad Yousefzadeh <farskid@gmail.com> (https://farzadyz.me)",
   "license": "MIT",
@@ -22,19 +22,58 @@
     "canvas"
   ],
   "type": "module",
+  "workspaces": [
+    "games/snake",
+    "games/2048",
+    "games/flappy",
+    "games/space-invaders",
+    "games/tetris",
+    "games/contra",
+    "games/block-blast"
+  ],
+  "sideEffects": false,
+  "files": ["dist"],
+  "types": "./dist/engine.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/engine.d.ts",
+      "import": "./dist/engine.js",
+      "default": "./dist/engine.js"
+    },
+    "./terminal": {
+      "types": "./dist/terminal.d.ts",
+      "import": "./dist/terminal.js",
+      "default": "./dist/terminal.js"
+    },
+    "./web": {
+      "types": "./dist/web.d.ts",
+      "import": "./dist/web.js",
+      "default": "./dist/web.js"
+    },
+    "./fx": {
+      "types": "./dist/fx.d.ts",
+      "import": "./dist/fx.js",
+      "default": "./dist/fx.js"
+    }
+  },
   "engines": {
-    "node": ">=22"
+    "node": ">=18"
   },
   "scripts": {
     "dev": "vite",
-    "dev:snake": "vite --config games/snake/vite.config.ts",
-    "dev:invaders": "vite --config games/space-invaders/vite.config.ts",
-    "dev:2048": "vite --config games/2048/vite.config.ts",
-    "dev:flappy": "vite --config games/flappy/vite.config.ts",
+    "dev:snake": "node scripts/dev-game.mjs snake",
+    "dev:invaders": "node scripts/dev-game.mjs space-invaders",
+    "dev:2048": "node scripts/dev-game.mjs 2048",
+    "dev:flappy": "node scripts/dev-game.mjs flappy",
+    "dev:contra": "node scripts/dev-game.mjs contra",
+    "dev:tetris": "node scripts/dev-game.mjs tetris",
+    "dev:blast": "node scripts/dev-game.mjs block-blast",
     "demo": "node scripts/demo.mjs",
     "build": "vite build",
+    "build:lib": "rm -rf dist && tsc -p tsconfig.build.json && node scripts/rewrite-dts.mjs",
+    "prepublishOnly": "npm run build:lib",
     "preview": "vite preview",
-    "test": "node --experimental-transform-types --test --test-concurrency=1 src/engine.test.ts src/ANSIPainter.test.ts src/TTY.test.ts src/CanvasPainter.test.ts src/WebEvent.test.ts src/WebSwipe.test.ts src/WebAudio.test.ts games/space-invaders/SpaceInvaders.test.ts games/flappy/Flappy.test.ts games/snake/Snake.test.ts games/fx.test.ts games/2048/Game2048.test.ts",
+    "test": "node --experimental-transform-types --test --test-concurrency=1 src/engine.test.ts src/ANSIPainter.test.ts src/TTY.test.ts src/CanvasPainter.test.ts src/WebEvent.test.ts src/WebGamepad.test.ts src/WebSwipe.test.ts src/WebAudio.test.ts src/fx.test.ts games/space-invaders/SpaceInvaders.test.ts games/flappy/Flappy.test.ts games/snake/Snake.test.ts games/2048/Game2048.test.ts games/tetris/Tetris.test.ts games/contra/Contra.test.ts games/block-blast/BlockBlast.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -10,7 +10,7 @@ import {
   keyEvent,
   type App,
   type Engine,
-} from "../../src/engine.ts";
+} from "tinycell";
 import { Cue, createSnakeApp } from "./Snake.ts";
 
 const engine = { stop() {} } as Engine;

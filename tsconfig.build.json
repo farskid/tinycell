@@ -3,20 +3,19 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM"],
     "strict": true,
-    "noEmit": true,
+    "declaration": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
     "allowImportingTsExtensions": true,
-    "types": ["node"],
-    "paths": {
-      "tinycell": ["./dist/engine.d.ts"],
-      "tinycell/terminal": ["./dist/terminal.d.ts"],
-      "tinycell/web": ["./dist/web.d.ts"],
-      "tinycell/fx": ["./dist/fx.d.ts"]
-    },
+    "rewriteRelativeImportExtensions": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src/**/*.ts", "games/**/*.ts", "demos/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
 }

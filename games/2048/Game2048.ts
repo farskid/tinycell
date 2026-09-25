@@ -9,7 +9,7 @@ import {
   type Engine,
   type InputQueue,
   type Surface,
-} from "../../src/engine.ts";
+} from "tinycell";
 import {
   fxAge,
   fxCovers,
@@ -18,7 +18,7 @@ import {
   fxSlideAt,
   type Fx,
   type Slide,
-} from "../fx.ts";
+} from "tinycell/fx";
 
 export const Cue = {
   Slide: 1,

@@ -14,7 +14,7 @@ import {
   keyEvent,
   type App,
   type Engine,
-} from "../../src/engine.ts";
+} from "tinycell";
 import { Cue, createGame2048App } from "./Game2048.ts";
 
 const engine = { stop() {} } as Engine;

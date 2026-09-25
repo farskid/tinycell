@@ -1,9 +1,12 @@
-import { createEngine } from "../../src/engine.ts";
-import { createWebCanvas } from "../../src/CanvasPainter.ts";
-import { createWebEvent } from "../../src/WebEvent.ts";
-import { createWebAudio } from "../../src/WebAudio.ts";
+import { createEngine } from "tinycell";
+import {
+  createWebAudio,
+  createWebCanvas,
+  createWebEvent,
+  createWebGamepad,
+  createWebSwipe,
+} from "tinycell/web";
 import { resumeWhenParentAsks } from "../parentResume.ts";
-import { createWebSwipe } from "../../src/WebSwipe.ts";
 import { bindWebPersist, createWebPersist } from "../WebPersist.ts";
 import { createGame2048App, Cue } from "./Game2048.ts";
 
@@ -50,7 +53,7 @@ function bootEngine(
   const opts = {
     app,
     painter: createWebCanvas(canvas, { cellPx: CELL }),
-    inputs: [createWebEvent(window), createWebSwipe(window)],
+    inputs: [createWebEvent(window), createWebSwipe(window), createWebGamepad(window)],
     audio,
     tickHz: 60,
   };

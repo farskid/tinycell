@@ -9,8 +9,8 @@ import {
   type Engine,
   type InputQueue,
   type Surface,
-} from "../../src/engine.ts";
-import { fxAge, fxEaseOut, fxSlideAt, type Fx } from "../fx.ts";
+} from "tinycell";
+import { fxAge, fxEaseOut, fxSlideAt, type Fx } from "tinycell/fx";
 
 export const Cue = {
   Flap: 1,

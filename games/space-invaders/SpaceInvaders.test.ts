@@ -11,7 +11,7 @@ import {
   keyEvent,
   type App,
   type Engine,
-} from "../../src/engine.ts";
+} from "tinycell";
 import { Cue, createSpaceInvadersApp } from "./SpaceInvaders.ts";
 
 const engine = { stop() {} } as Engine;
