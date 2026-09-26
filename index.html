@@ -21,6 +21,7 @@
     --flappy: #ffe14a;
     --tetris: #5ce1e6;
     --contra: #ff5a36;
+    --battle: #e6b325;
     font-family: "IBM Plex Mono", ui-monospace, monospace;
   }
 
@@ -144,6 +145,10 @@
 
   .machine.contra {
     --accent: var(--contra);
+  }
+
+  .machine.battle {
+    --accent: var(--battle);
   }
 
   a.machine {
@@ -295,6 +300,12 @@
       <span class="bar"><span><i class="dot"></i><b>Contra</b></span><span>64×28</span></span>
       <img class="poster" src="demos/contra/demo.png" alt="Contra" width="1024" height="448" />
       <span class="keys"><kbd>arrows</kbd> walk and aim · <kbd>space</kbd> shoot · <kbd>enter</kbd> jump · <kbd>tab</kbd> duck</span>
+    </a>
+
+    <a class="machine battle" href="demos/battle-city/">
+      <span class="bar"><span><i class="dot"></i><b>Battle City</b></span><span>36×28</span></span>
+      <img class="poster" src="demos/battle-city/demo.png" alt="Battle City" width="432" height="336" />
+      <span class="keys"><kbd>enter</kbd> start · <kbd>arrows</kbd> drive · <kbd>space</kbd> fire · <kbd>esc</kbd> pause</span>
     </a>
 
     <a class="machine flappy" href="demos/flappy/">

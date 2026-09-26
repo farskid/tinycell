@@ -269,3 +269,7 @@ The same games are running at [farskid.github.io/tinycell](https://farskid.githu
 [![Tetris: a falling piece above a colored stack](demos/tetris/demo.png)](https://farskid.github.io/tinycell/demos/tetris/)
 
 [Tetris](https://farskid.github.io/tinycell/demos/tetris/). Arrows move, up rotates, space drops. A 10×20 well, a next queue, and line clears, still drawn as cells.
+
+[![Battle City: a yellow tank, brick walls, and the eagle](demos/battle-city/demo.png)](https://farskid.github.io/tinycell/demos/battle-city/)
+
+[Battle City](https://farskid.github.io/tinycell/demos/battle-city/). Enter starts, arrows drive, space fires. Brick, steel, water, and the eagle are cells on a 36×28 grid.

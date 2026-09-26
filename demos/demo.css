@@ -11,6 +11,7 @@
   --flappy: #ffe14a;
   --tetris: #5ce1e6;
   --contra: #ff5a36;
+  --battle: #e6b325;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
 }
 
@@ -144,6 +145,10 @@ h1 {
 
 .machine.contra {
   --accent: var(--contra);
+}
+
+.machine.battle {
+  --accent: var(--battle);
 }
 
 .machine.live {
