@@ -13,6 +13,7 @@ import {
 
 type Op =
   | { op: "fillRect"; x: number; y: number; w: number; h: number; fill: string }
+  | { op: "clearRect"; x: number; y: number; w: number; h: number }
   | { op: "fill"; fill: string }
   | {
       op: "fillText";
@@ -21,6 +22,17 @@ type Op =
       y: number;
       fill: string;
       font: string;
+    }
+  | {
+      op: "drawImage";
+      sx: number;
+      sy: number;
+      sw: number;
+      sh: number;
+      x: number;
+      y: number;
+      w: number;
+      h: number;
     };
 
 function fakeCanvas(w: number, h: number) {
@@ -29,6 +41,20 @@ function fakeCanvas(w: number, h: number) {
   const ctx = {
     fillStyle: "",
     font: "",
+    imageSmoothingEnabled: true,
+    drawImage(
+      _image: unknown,
+      sx: number,
+      sy: number,
+      sw: number,
+      sh: number,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+    ) {
+      ops.push({ op: "drawImage", sx, sy, sw, sh, x, y, w, h });
+    },
     textAlign: "",
     textBaseline: "",
     fillRect(x: number, y: number, rw: number, rh: number) {
@@ -40,6 +66,9 @@ function fakeCanvas(w: number, h: number) {
         h: rh,
         fill: this.fillStyle,
       });
+    },
+    clearRect(x: number, y: number, rw: number, rh: number) {
+      ops.push({ op: "clearRect", x, y, w: rw, h: rh });
     },
     fillText(text: string, x: number, y: number) {
       ops.push({
@@ -293,4 +322,60 @@ test("engine can construct the canvas painter with a fake canvas", () => {
   });
   engine.stop();
   engine.stop();
+});
+
+test("a picture replaces the glyph and a crop keeps its source rect", () => {
+  const image = { width: 16, height: 8 };
+  const view = fakeCanvas(32, 16);
+  const painter = createWebCanvas(view.canvas, {
+    cellPx: 16,
+    pictures: {
+      [0xe100]: image,
+      [0xe101]: { image, src: { x: 8, y: 0, w: 8, h: 8 } },
+    },
+  });
+  const surface = new Surface(2, 1);
+  surface.fill(EMPTY_CELL);
+  painter.resize(2, 1);
+  surface.set(0, 0, packCell(0xe100, Color.Default, Color.Black));
+  surface.set(1, 0, packCell(0xe101, Color.Default, Color.Red));
+  const start = view.ops.length;
+  painter.paint(surface);
+  const paintOps = view.ops.slice(start);
+  const drawn = paintOps.filter((op) => op.op === "drawImage");
+  assert.deepEqual(drawn, [
+    { op: "drawImage", sx: 0, sy: 0, sw: 16, sh: 8, x: 0, y: 0, w: 16, h: 16 },
+    { op: "drawImage", sx: 8, sy: 0, sw: 8, sh: 8, x: 16, y: 0, w: 16, h: 16 },
+  ]);
+  assert.equal(
+    paintOps.some((op) => op.op === "fillText" || op.op === "fillRect"),
+    false,
+  );
+  assert.deepEqual(
+    paintOps.filter((op) => op.op === "clearRect"),
+    [
+      { op: "clearRect", x: 0, y: 0, w: 16, h: 16 },
+      { op: "clearRect", x: 16, y: 0, w: 16, h: 16 },
+    ],
+  );
+  painter.dispose();
+});
+
+test("an unmapped code stays a glyph and a bad picture id throws", () => {
+  const view = fakeCanvas(16, 16);
+  const painter = createWebCanvas(view.canvas, {
+    cellPx: 16,
+    pictures: { [0xe100]: { width: 8, height: 8 } },
+  });
+  const surface = new Surface(1, 1);
+  surface.fill(EMPTY_CELL);
+  painter.resize(1, 1);
+  surface.set(0, 0, packCell(0x41));
+  painter.paint(surface);
+  assert.equal(view.ops.at(-1)?.op, "fillText");
+  painter.dispose();
+  assert.throws(
+    () => createWebCanvas(view.canvas, { pictures: { [-1]: { width: 1, height: 1 } } }),
+    /picture id/,
+  );
 });

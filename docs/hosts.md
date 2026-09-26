@@ -20,7 +20,7 @@ Swap-and-run means the game still ticks. It does not mean every painter draws th
 
 A bitmap is a host limit. It lives in the painter, the way a sample lives in the sink.
 
-`view` writes a cell. The web painter may map that character code to a PNG and draw it. The terminal painter draws the glyph and the color for the same code. The `App` never sees a URL or an image. Silence of the extra picture is a valid host, same as a missing audio sink.
+`view` writes a character code. `createWebCanvas({ pictures })` maps that code to a bitmap, or to a crop of one. `createANSIPainter({ glyphs })` maps the same code to a codepoint. A code with no picture is drawn as a glyph. A code with no glyph is drawn as itself. The `App` never sees a URL or an image. Silence of the extra picture is a valid host, same as a missing audio sink.
 
 The bitmap should occupy the cells the rules already use. A picture that spills past those cells no longer matches collision.
 

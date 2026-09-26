@@ -36,6 +36,8 @@ const BG_CODE = [
 export interface ANSIPainterOptions {
   /** Terminal columns per logical cell. 2 ≈ square glyphs. */
   cellW?: number;
+  /** Character code → codepoint to emit. A miss emits the code itself. */
+  glyphs?: Readonly<Record<number, number>>;
 }
 
 export function createANSIPainter(
@@ -55,12 +57,13 @@ export function createANSIPainter(
     throw new Error("createANSIPainter requires a TTY stream");
   const cellW = opts?.cellW ?? 1;
   if (!(cellW > 0)) throw new Error("cellW must be > 0");
-  return new ANSIPainter(out, cellW | 0);
+  return new ANSIPainter(out, cellW | 0, bakeGlyphs(opts?.glyphs));
 }
 
 class ANSIPainter implements Painter {
   private readonly stream: AnsiStream;
   private readonly cellW: number;
+  private readonly glyphs: ReadonlyMap<number, number> | undefined;
   private readonly host = { w: 80, h: 24 };
   private readonly listeners: Array<(w: number, h: number) => void> = [];
   private readonly onHost: () => void;
@@ -76,9 +79,14 @@ class ANSIPainter implements Painter {
   private lastBg = -1;
   private lastAttr = -1;
 
-  constructor(stream: AnsiStream, cellW: number) {
+  constructor(
+    stream: AnsiStream,
+    cellW: number,
+    glyphs: ReadonlyMap<number, number> | undefined,
+  ) {
     this.stream = stream;
     this.cellW = cellW;
+    this.glyphs = glyphs;
     this.host.w = cols(stream.columns, 80, cellW);
     this.host.h = dim(stream.rows, 24);
     this.onHost = () => {
@@ -192,6 +200,8 @@ class ANSIPainter implements Painter {
   }
 
   private putCell(ch: number): void {
+    const mapped = this.glyphs?.get(ch);
+    if (mapped !== undefined) ch = mapped;
     if (ch === 0x2665) {
       this.putGlyph(ch);
       for (let k = 1; k < this.cellW; k++) this.put(0x20);
@@ -309,6 +319,25 @@ class ANSIPainter implements Painter {
     this.put(0x3b);
     this.writeDec(n);
   }
+}
+
+function bakeGlyphs(
+  glyphs: Readonly<Record<number, number>> | undefined,
+): Map<number, number> | undefined {
+  if (!glyphs) return undefined;
+  const map = new Map<number, number>();
+  for (const key of Object.keys(glyphs)) {
+    const id = Number(key);
+    const glyph = glyphs[id]!;
+    if (!code(id) || !code(glyph))
+      throw new Error("glyph id and glyph must be character codes");
+    map.set(id, glyph);
+  }
+  return map;
+}
+
+function code(n: number): boolean {
+  return Number.isInteger(n) && n >= 0 && n <= 0xffff;
 }
 
 function fullwidth(ch: number): boolean {

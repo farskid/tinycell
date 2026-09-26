@@ -1,4 +1,10 @@
-export { createWebCanvas, type WebCanvasOptions } from "./CanvasPainter.ts";
+export {
+  createWebCanvas,
+  type Bitmap,
+  type Picture,
+  type PictureCrop,
+  type WebCanvasOptions,
+} from "./CanvasPainter.ts";
 export { createWebEvent, type WebEventOptions } from "./WebEvent.ts";
 export { createWebGamepad, type WebGamepadOptions } from "./WebGamepad.ts";
 export { createWebSwipe, type WebSwipeOptions } from "./WebSwipe.ts";

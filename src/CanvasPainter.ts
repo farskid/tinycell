@@ -17,6 +17,7 @@ interface Canvas2D {
   textAlign: string;
   textBaseline: string;
   fillRect(x: number, y: number, w: number, h: number): void;
+  clearRect(x: number, y: number, w: number, h: number): void;
   fillText(text: string, x: number, y: number): void;
   beginPath(): void;
   moveTo(x: number, y: number): void;
@@ -30,6 +31,18 @@ interface Canvas2D {
   ): void;
   closePath(): void;
   fill(): void;
+  imageSmoothingEnabled: boolean;
+  drawImage(
+    image: Bitmap,
+    sx: number,
+    sy: number,
+    sw: number,
+    sh: number,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number,
+  ): void;
   setTransform(
     a: number,
     b: number,
@@ -39,6 +52,21 @@ interface Canvas2D {
     f: number,
   ): void;
 }
+
+/** Anything `drawImage` accepts. Already decoded. The painter does not fetch. */
+export interface Bitmap {
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface PictureCrop {
+  image: Bitmap;
+  /** Fixed crop inside `image`, in image pixels. */
+  src: { x: number; y: number; w: number; h: number };
+}
+
+/** A whole bitmap, or one crop of a sheet. */
+export type Picture = Bitmap | PictureCrop;
 
 interface CanvasHost {
   width: number;
@@ -54,6 +82,8 @@ interface CanvasHost {
 export interface WebCanvasOptions {
   /** Bitmap pixels per logical cell. */
   cellPx?: number;
+  /** Character code → picture drawn in that cell. A miss stays a glyph. */
+  pictures?: Readonly<Record<number, Picture>>;
 }
 
 const RGB: Array<readonly [number, number, number]> = [
@@ -100,13 +130,14 @@ export function createWebCanvas(
   if (!(cellPx > 0)) throw new Error("cellPx must be > 0");
   const ctx = host.getContext("2d");
   if (!ctx) throw new Error("createWebCanvas requires a 2d canvas");
-  return new WebCanvasPainter(host, ctx, cellPx | 0);
+  return new WebCanvasPainter(host, ctx, cellPx | 0, bakePictures(opts?.pictures));
 }
 
 class WebCanvasPainter implements Painter {
   private readonly canvas: CanvasHost;
   private readonly ctx: Canvas2D;
   private readonly cellPx: number;
+  private readonly pictures: ReadonlyMap<number, BakedPicture>;
   private readonly font: string;
   private readonly fontBold: string;
   private readonly fontHalf: string;
@@ -127,10 +158,16 @@ class WebCanvasPainter implements Painter {
   private readyFlag = true;
   private disposed = false;
 
-  constructor(canvas: CanvasHost, ctx: Canvas2D, cellPx: number) {
+  constructor(
+    canvas: CanvasHost,
+    ctx: Canvas2D,
+    cellPx: number,
+    pictures: ReadonlyMap<number, BakedPicture>,
+  ) {
     this.canvas = canvas;
     this.ctx = ctx;
     this.cellPx = cellPx;
+    this.pictures = pictures;
     const half = Math.max(1, cellPx >> 1);
     this.font = `${cellPx}px monospace`;
     this.fontBold = `bold ${cellPx}px monospace`;
@@ -267,6 +304,7 @@ class WebCanvasPainter implements Painter {
   private prepare(): void {
     const d = this.scale;
     this.ctx.setTransform(d, 0, 0, d, 0, 0);
+    this.ctx.imageSmoothingEnabled = false;
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
   }
@@ -289,9 +327,26 @@ class WebCanvasPainter implements Painter {
     const x0 = x * px;
     const y0 = y * px;
     const ctx = this.ctx;
+    const ch = cellChar(cell);
+    const picture = this.pictures.get(ch);
+    if (picture) {
+      ctx.clearRect(x0, y0, px, px);
+      ctx.drawImage(
+        picture.image,
+        picture.sx,
+        picture.sy,
+        picture.sw,
+        picture.sh,
+        x0,
+        y0,
+        px,
+        px,
+      );
+      underline(ctx, attr, fgCss, x0, y0, px);
+      return;
+    }
     ctx.fillStyle = bgCss;
     ctx.fillRect(x0, y0, px, px);
-    const ch = cellChar(cell);
     if (ch === 0x25a1) {
       ctx.fillStyle = fgCss;
       strokeBox(ctx, x0, y0, px);
@@ -314,12 +369,61 @@ class WebCanvasPainter implements Painter {
       ctx.font = (attr & Attr.Bold) !== 0 ? this.fontBold : this.font;
       ctx.fillText(glyph(ch), x0 + px / 2, y0 + px / 2);
     }
-    if ((attr & Attr.Underline) !== 0) {
-      ctx.fillStyle = fgCss;
-      const t = Math.max(1, px >> 4);
-      ctx.fillRect(x0, y0 + px - t, px, t);
-    }
+    underline(ctx, attr, fgCss, x0, y0, px);
   }
+}
+
+interface BakedPicture {
+  image: Bitmap;
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+}
+
+function bakePictures(
+  pictures: Readonly<Record<number, Picture>> | undefined,
+): Map<number, BakedPicture> {
+  const map = new Map<number, BakedPicture>();
+  if (!pictures) return map;
+  for (const key of Object.keys(pictures)) {
+    const id = Number(key);
+    if (!code(id)) throw new Error("picture id must be a character code");
+    const picture = pictures[id]!;
+    const crop = "image" in picture;
+    const image = crop ? picture.image : picture;
+    const sw = crop ? picture.src.w : image.width;
+    const sh = crop ? picture.src.h : image.height;
+    if (!(image.width > 0) || !(image.height > 0))
+      throw new Error("picture size must be > 0");
+    if (!(sw > 0) || !(sh > 0)) throw new Error("picture crop must be > 0");
+    map.set(id, {
+      image,
+      sx: crop ? picture.src.x : 0,
+      sy: crop ? picture.src.y : 0,
+      sw,
+      sh,
+    });
+  }
+  return map;
+}
+
+function code(n: number): boolean {
+  return Number.isInteger(n) && n >= 0 && n <= 0xffff;
+}
+
+function underline(
+  ctx: Canvas2D,
+  attr: number,
+  fgCss: string,
+  x0: number,
+  y0: number,
+  px: number,
+): void {
+  if ((attr & Attr.Underline) === 0) return;
+  ctx.fillStyle = fgCss;
+  const t = Math.max(1, px >> 4);
+  ctx.fillRect(x0, y0 + px - t, px, t);
 }
 
 function fillHeart(ctx: Canvas2D, x: number, y: number, px: number): void {

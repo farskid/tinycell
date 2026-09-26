@@ -225,3 +225,35 @@ test("engine can construct the ANSI painter type with a fake tty", () => {
   engine.stop();
   engine.stop();
 });
+
+test("glyphs remap a picture id and a missing one stays the code", () => {
+  const mapped = fakeOut();
+  const painter = createANSIPainter(mapped.stream, {
+    glyphs: { [0xe100]: 0x5e },
+  });
+  const surface = new Surface(1, 1);
+  surface.fill(EMPTY_CELL);
+  painter.resize(1, 1);
+  surface.set(0, 0, packCell(0xe100));
+  painter.paint(surface);
+  assert.equal(latin1(mapped.chunks.at(-1)!), "\x1b[1;1H\x1b[0m^");
+  painter.dispose();
+
+  const raw = fakeOut();
+  const plain = createANSIPainter(raw.stream);
+  const other = new Surface(1, 1);
+  other.fill(EMPTY_CELL);
+  plain.resize(1, 1);
+  other.set(0, 0, packCell(0xe100));
+  plain.paint(other);
+  assert.equal(latin1(raw.chunks.at(-1)!), "\x1b[1;1H\x1b[0m\xee\x84\x80");
+  plain.dispose();
+});
+
+test("a glyph id outside the character range throws", () => {
+  const out = fakeOut();
+  assert.throws(
+    () => createANSIPainter(out.stream, { glyphs: { [0xe100]: 0x10000 } }),
+    /glyph/,
+  );
+});
