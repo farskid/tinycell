@@ -1,6 +1,6 @@
 {
   "name": "tinycell",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Host-blind fixed-timestep cell engine. One App owns the rules and the grid; the host only paints, feeds keys, and stores bytes.",
   "author": "Farzad Yousefzadeh <farskid@gmail.com> (https://farzadyz.me)",
   "license": "MIT",
