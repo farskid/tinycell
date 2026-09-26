@@ -30,7 +30,7 @@ The slogan is the whole design: a **host-blind fixed-timestep cell engine**. One
 
 ## Why a grid
 
-Most small engines grow a scene: sprites, a draw list, a camera, then a different renderer for every platform. TinyCell refuses that. If it is not a cell, it is not on screen. Snake, Invaders, 2048, Flappy, and Tetris are all the same kind of object: a rectangle of packed cells, rewritten every tick.
+Most small engines grow a scene: sprites, a draw list, a camera, then a different renderer for every platform. TinyCell refuses that. If it is not a cell, it is not on screen. Battle City, Snake, Invaders, 2048, Flappy, and Tetris are all the same kind of object: a rectangle of packed cells, rewritten every tick.
 
 That constraint is the point. A game written this way has nowhere to hide a `document` call or a `stdout` write. Logic and picture share a clock, and neither knows whether the next paint is ANSI or a `<canvas>`. Swap the painter and the same rules run somewhere else.
 
@@ -155,6 +155,24 @@ interface Painter {
 
 `paint` receives the whole front surface. Diffing belongs to the painter. `onResize` is how the painter tells the engine its size changed. `resize` is the engine telling the painter which grid to draw. `dispose` runs from `stop`.
 
+The character code can name a picture. That map lives on the painter, the same way a cue id lives on the audio sink.
+
+```ts
+createWebCanvas(canvas, {
+  cellPx: 16,
+  pictures: {
+    0xe100: { image, src: { x: 0, y: 0, w: 8, h: 8 } },
+  },
+});
+
+createANSIPainter(stdout, {
+  cellW: 2,
+  glyphs: { 0xe100: 0x5e },
+});
+```
+
+`pictures` maps a code to a bitmap, or to a crop of one. `glyphs` maps the same code to a codepoint. A code with no picture is drawn as a glyph. A code with no glyph is emitted as the code. The `App` writes the code in `view` and never sees an image. Battle City is the example: four codes are one tank, and the terminal draws letters for those codes.
+
 ### Audio
 
 ```ts
@@ -250,6 +268,10 @@ An event is `[kind:8][code:24]`. `keyEvent(key)` and `charEvent(codepoint)` pack
 
 The same games are running at [farskid.github.io/tinycell](https://farskid.github.io/tinycell/). Each demo page is the live game next to the `App` and both hosts, so you can read the rules and play them. The web host maps cue ids to tones. The terminal host passes no sink, so the same ticks are silent.
 
+[![Battle City: a yellow tank, brick walls, and the eagle](demos/battle-city/demo.png)](https://farskid.github.io/tinycell/demos/battle-city/)
+
+[Battle City](https://farskid.github.io/tinycell/demos/battle-city/). Enter starts, arrows drive, space fires. Brick, steel, water, and the eagle are cells on a 36×28 grid. The web host draws those cells from a sheet. The terminal draws glyphs for the same codes.
+
 [![Space Invaders: a formation of colored cells, four bunkers, and a ship](demos/invaders/demo.png)](https://farskid.github.io/tinycell/demos/invaders/)
 
 [Invaders](https://farskid.github.io/tinycell/demos/invaders/). Enter starts, arrows move, space fires. Aliens, bunkers, and the ship are cells on a 48×34 grid.
@@ -269,7 +291,3 @@ The same games are running at [farskid.github.io/tinycell](https://farskid.githu
 [![Tetris: a falling piece above a colored stack](demos/tetris/demo.png)](https://farskid.github.io/tinycell/demos/tetris/)
 
 [Tetris](https://farskid.github.io/tinycell/demos/tetris/). Arrows move, up rotates, space drops. A 10×20 well, a next queue, and line clears, still drawn as cells.
-
-[![Battle City: a yellow tank, brick walls, and the eagle](demos/battle-city/demo.png)](https://farskid.github.io/tinycell/demos/battle-city/)
-
-[Battle City](https://farskid.github.io/tinycell/demos/battle-city/). Enter starts, arrows drive, space fires. Brick, steel, water, and the eagle are cells on a 36×28 grid.
