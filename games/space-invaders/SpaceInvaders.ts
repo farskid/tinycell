@@ -116,6 +116,7 @@ type Phase = "idle" | "run" | "dead";
 
 interface State {
   phase: Phase;
+  paused: boolean;
   score: number;
   lives: number;
   wave: number;
@@ -172,6 +173,7 @@ function fillShields(s: State): void {
 
 function reset(s: State): void {
   s.phase = "idle";
+  s.paused = false;
   s.score = 0;
   s.lives = 300;
   s.wave = 1;
@@ -428,6 +430,23 @@ function shotHitsDive(s: State, x: number, y: number): boolean {
   return x >= at.x && x < at.x + AW;
 }
 
+function downDive(s: State, cues?: CueQueue): void {
+  s.score += ROW_PTS[(s.diveI / COLS) | 0]!;
+  sound(cues, Cue.Alien);
+  s.diveOn = 0;
+}
+
+function killDiveFromShots(s: State, cues?: CueQueue): void {
+  if (!s.diveOn) return;
+  for (let i = s.pN - 1; i >= 0; i--) {
+    if (!shotHitsDive(s, s.pX[i]!, s.pY[i]!)) continue;
+    const gun = s.pGun[i]!;
+    downDive(s, cues);
+    if (gun !== GUN_PIERCE) removePShot(s, i);
+    return;
+  }
+}
+
 function tickDive(s: State, cues?: CueQueue): void {
   if (!s.diveOn) return;
   s.diveAim += (s.playerX + 1 - s.diveAim) * 0.06;
@@ -448,6 +467,7 @@ function tickDive(s: State, cues?: CueQueue): void {
     return;
   }
   if (s.diveT >= DIVE_DUR || at.y > PLAYER_Y) s.diveOn = 0;
+  killDiveFromShots(s, cues);
 }
 
 function tryDive(s: State, cues?: CueQueue): void {
@@ -485,9 +505,7 @@ function strike(
   cues?: CueQueue,
 ): boolean {
   if (shotHitsDive(s, x, y)) {
-    s.score += ROW_PTS[(s.diveI / COLS) | 0]!;
-    sound(cues, Cue.Alien);
-    s.diveOn = 0;
+    downDive(s, cues);
     return gun !== GUN_PIERCE;
   }
   if (damageShield(s, x, y)) return true;
@@ -517,6 +535,7 @@ function strike(
 }
 
 function movePlayerBullets(s: State, cues?: CueQueue): void {
+  killDiveFromShots(s, cues);
   for (let i = s.pN - 1; i >= 0; i--) {
     const gun = s.pGun[i]!;
     const step = gun === GUN_FAST ? FAST_STEP : BULLET_STEP;
@@ -793,7 +812,7 @@ function pad(n: number, width: number): string {
 function hint(phase: Phase): string {
   if (phase === "dead") return "ENTER RETRY";
   if (phase === "idle") return "ENTER START   ARROWS MOVE   SPACE FIRE";
-  return "ARROWS MOVE   SPACE FIRE";
+  return "ARROWS MOVE   SPACE FIRE   ESC PAUSE";
 }
 
 /** Two ASCII bytes per cell so a cellW 2 terminal stays square and readable. */
@@ -814,7 +833,25 @@ function writeHud(
   }
 }
 
-function draw(s: State, out: Surface): void {
+function menuLine(out: Surface, y: number, text: string, on: boolean): void {
+  const x = ((out.w - text.length) / 2) | 0;
+  const fg = on ? Color.BrightYellow : Color.BrightWhite;
+  out.writeText(x, y, text, fg, Color.Blue);
+  if (on) out.writeText(x - 2, y, ">", fg, Color.Blue);
+}
+
+function pauseMenu(out: Surface, menu: number): void {
+  const x0 = ((out.w - 18) / 2) | 0;
+  const panel = packCell(0x20, Color.BrightWhite, Color.Blue);
+  for (let y = 12; y <= 18; y++) {
+    for (let x = x0; x < x0 + 18; x++) out.set(x, y, panel);
+  }
+  out.writeText(((out.w - 6) / 2) | 0, 13, "PAUSED", Color.BrightWhite, Color.Blue);
+  menuLine(out, 15, "RESUME", menu === 0);
+  menuLine(out, 17, "RESTART", menu === 1);
+}
+
+function draw(s: State, out: Surface, menu: number): void {
   out.fill(EMPTY_CELL);
   for (let x = 0; x < W; x++) out.set(x, H - 1, GROUND);
   for (let i = 0; i < SHIELD_N; i++) {
@@ -881,6 +918,7 @@ function draw(s: State, out: Surface): void {
     Color.BrightWhite,
   );
   writeHud(out, 0, H + 1, hint(s.phase), Color.BrightBlack);
+  if (s.paused) pauseMenu(out, menu);
   if (s.phase !== "dead") return;
   const msg = "GAME OVER";
   writeHud(
@@ -1208,25 +1246,35 @@ function readKeys(input: InputQueue): {
   fire: boolean;
   start: boolean;
   quit: boolean;
+  up: boolean;
+  down: boolean;
+  pause: boolean;
 } {
   let dir = 0;
   let fire = false;
   let start = false;
   let quit = false;
+  let up = false;
+  let down = false;
+  let pause = false;
   for (let i = 0; i < input.length; i++) {
     const k = keyOf(input.at(i));
     if (k === Key.CtrlC) quit = true;
     else if (k === Key.Left) dir = -1;
     else if (k === Key.Right) dir = 1;
+    else if (k === Key.Up) up = true;
+    else if (k === Key.Down) down = true;
     else if (k === Key.Space) fire = true;
     else if (k === Key.Enter) start = true;
+    else if (k === Key.Escape) pause = true;
   }
-  return { dir, fire, start, quit };
+  return { dir, fire, start, quit, up, down, pause };
 }
 
 export function createSpaceInvadersApp(): App {
   const state: State = {
     phase: "idle",
+    paused: false,
     score: 0,
     lives: 3,
     wave: 1,
@@ -1273,6 +1321,9 @@ export function createSpaceInvadersApp(): App {
     diveAim: 0,
   };
   reset(state);
+  let menu = 0;
+  let menuLatch = false;
+  let confirmLatch = false;
 
   return {
     size: { w: W, h: H + HUD_H },
@@ -1282,8 +1333,35 @@ export function createSpaceInvadersApp(): App {
         engine.stop();
         return;
       }
+      if (ev.pause && state.phase === "run") {
+        state.paused = !state.paused;
+        if (state.paused) {
+          menu = 0;
+          menuLatch = ev.up || ev.down;
+          confirmLatch = ev.start || ev.fire;
+        }
+        return;
+      }
+      if (state.paused) {
+        const move = !menuLatch;
+        menuLatch = ev.up || ev.down;
+        if (move && ev.down) menu = 1;
+        else if (move && ev.up) menu = 0;
+        const confirm = !confirmLatch && (ev.start || ev.fire);
+        confirmLatch = ev.start || ev.fire;
+        if (confirm) {
+          const restart = menu === 1;
+          menu = 0;
+          state.paused = false;
+          if (restart) {
+            reset(state);
+            state.phase = "run";
+          }
+        }
+        return;
+      }
       if (state.phase === "dead") {
-        if (ev.start) reset(state);
+        if (ev.start || ev.fire) reset(state);
         return;
       }
       if (state.phase === "idle") {
@@ -1294,7 +1372,7 @@ export function createSpaceInvadersApp(): App {
       simulate(state, ev.dir, ev.fire, cues);
     },
     view(out) {
-      draw(state, out);
+      draw(state, out, menu);
     },
     snapshot(out) {
       return writeState(state, out);

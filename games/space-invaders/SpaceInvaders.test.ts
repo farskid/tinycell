@@ -106,6 +106,64 @@ test("a shot, an alien, and the march each push a cue", () => {
   assert.ok(ids.includes(Cue.March0));
 });
 
+test("a shot kills a diving alien", () => {
+  const app = createSpaceInvadersApp();
+  frames(app, Key.Enter, 1);
+  let seen = false;
+  for (let i = 0; i < 400 && !seen; i++) {
+    seen = heard(app, null).includes(Cue.Dive);
+  }
+  assert.equal(seen, true);
+  let hit = false;
+  for (let n = 0; n < 80 && !hit; n++) {
+    const surface = paint(app);
+    let x = -1;
+    let y = -1;
+    for (let row = 8; row < 28 && x < 0; row++) {
+      for (let col = 0; col < surface.w; col++) {
+        const bg = cellBg(surface.cells[row * surface.w + col]!);
+        if (bg !== Color.BrightYellow && bg !== Color.BrightGreen && bg !== Color.BrightCyan && bg !== Color.BrightMagenta && bg !== Color.BrightBlue)
+          continue;
+        if (row % 2 === 0 && row <= 12) continue;
+        x = col;
+        y = row;
+        break;
+      }
+    }
+    if (x < 0) {
+      heard(app, null);
+      continue;
+    }
+    const nose = playerXs(paint(app));
+    const at = nose[1] ?? x;
+    const key = at < x ? Key.Right : at > x ? Key.Left : Key.Space;
+    const before = scoreOf(app);
+    heard(app, key);
+    if (key === Key.Space) {
+      for (let s = 0; s < 20 && !hit; s++) {
+        if (heard(app, null).includes(Cue.Alien) || scoreOf(app) > before) hit = true;
+      }
+    }
+    if (y < 0) break;
+  }
+  assert.equal(hit, true);
+});
+
+test("escape opens a pause menu and restart clears the score", () => {
+  const app = createSpaceInvadersApp();
+  frames(app, Key.Enter, 1);
+  frames(app, Key.Space, 15);
+  assert.equal(scoreOf(app), 10);
+  frames(app, Key.Escape, 1);
+  const paused = paint(app);
+  assert.match(rowText(paused, 13), /PAUSED/);
+  assert.match(rowText(paused, 15), /RESUME/);
+  frames(app, Key.Down, 1);
+  frames(app, Key.Enter, 1);
+  assert.equal(scoreOf(app), 0);
+  assert.doesNotMatch(rowText(paint(app), 13), /PAUSED/);
+});
+
 test("a diver leaves the formation, curves down, and cues the dive", () => {
   const app = createSpaceInvadersApp();
   frames(app, Key.Enter, 1);

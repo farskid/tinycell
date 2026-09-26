@@ -53,7 +53,13 @@ function bootEngine(
     painter: createWebCanvas(canvas, { cellPx: CELL }),
     inputs: [
       createWebEvent(window, { hold: [Key.Left, Key.Right, Key.Space] }),
-      createWebGamepad(window, { hold: [Key.Left, Key.Right, Key.Space] }),
+      createWebGamepad(window, {
+        hold: [Key.Left, Key.Right, Key.Space],
+        bind: [
+          [0, Key.Space],
+          [9, Key.Escape],
+        ],
+      }),
     ],
     audio,
     tickHz: 30,
