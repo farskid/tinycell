@@ -1,5 +1,7 @@
 # TinyCell
 
+[![npm](https://img.shields.io/npm/v/tinycell)](https://www.npmjs.com/package/tinycell)
+
 A TypeScript engine for games made of cells. `tick` updates the grid, `view` draws it. One `App` runs on a canvas and in a terminal.
 
 ```ts
