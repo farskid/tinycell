@@ -1,5 +1,5 @@
 import type { On } from "claude-code";
-import { catalogFile, launchArgv, repoOf, type LaunchHave } from "../launch.js";
+import { catalogFile, launchArgv, repoOf, terminalFallback, type LaunchHave } from "../launch.js";
 
 export function register(on: On): void {
   // commands/play.md is what the slash menu lists at plugin load. Registering
@@ -43,8 +43,18 @@ export function register(on: On): void {
     }
     const run = await $.process.run(argv, { cwd, timeoutMs: 15_000 });
     if (run.exitCode !== 0) {
-      const err = run.stderr.trim() || run.stdout.trim() || `exit ${run.exitCode}`;
-      return { text: `tinycell could not open a terminal: ${err}` };
+      const output = `${run.stderr}\n${run.stdout}`;
+      const fallback = terminalFallback(argv, output, catalog);
+      if (fallback) {
+        const again = await $.process.run(fallback, { cwd, timeoutMs: 15_000 });
+        if (again.exitCode !== 0) {
+          const err = again.stderr.trim() || again.stdout.trim() || `exit ${again.exitCode}`;
+          return { text: `tinycell could not open a terminal: ${err}` };
+        }
+      } else {
+        const err = run.stderr.trim() || run.stdout.trim() || `exit ${run.exitCode}`;
+        return { text: `tinycell could not open a terminal: ${err}` };
+      }
     }
     return {
       text: inTmux
