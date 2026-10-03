@@ -1,0 +1,5 @@
+{
+  "name": "tinycell",
+  "owner": { "name": "Farzad Yousefzadeh" },
+  "plugins": [{ "name": "tinycell", "source": "./mods/play" }]
+}
