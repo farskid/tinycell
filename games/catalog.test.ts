@@ -178,7 +178,7 @@ pid, fd = pty.fork()
 if pid == 0:
     os.environ["HOME"] = os.environ["TINYCELL_HOME"]
     os.environ["TERM"] = "xterm-256color"
-    os.execvp("node", ["node", "--experimental-transform-types", catalog])
+    os.execvp("node", ["node", catalog])
 
 buf = b""
 try:

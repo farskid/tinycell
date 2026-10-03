@@ -23,12 +23,19 @@ export function register(on: On): void {
     const catalog = catalogFile($.plugin.root);
     const cwd = repoOf(catalog);
     const inTmux = Boolean(await $.env.get("TMUX"));
+    const darwin = (await uname($)) === "Darwin";
+    const home = (await $.env.get("HOME")) ?? "";
     const have: LaunchHave = {
+      darwin,
       setsid: await which($, "setsid"),
       gnome: await which($, "gnome-terminal"),
       kitty: await which($, "kitty"),
+      ghostty: await which($, "ghostty"),
+      ghosttyApp: darwin && (await appExists($, "Ghostty.app", home)),
       xterm: await which($, "xterm"),
       emulator: await which($, "x-terminal-emulator"),
+      iterm: darwin && (await appExists($, "iTerm.app", home)),
+      osascript: (await which($, "osascript")) || (await isExec($, "/usr/bin/osascript")),
     };
     const argv = launchArgv({ catalog, inTmux, have });
     if (!argv) {
@@ -36,8 +43,8 @@ export function register(on: On): void {
     }
     const run = await $.process.run(argv, { cwd, timeoutMs: 15_000 });
     if (run.exitCode !== 0) {
-      const err = run.stderr.trim() || `exit ${run.exitCode}`;
-      return { text: `${manual(catalog)} (${err})` };
+      const err = run.stderr.trim() || run.stdout.trim() || `exit ${run.exitCode}`;
+      return { text: `tinycell could not open a terminal: ${err}` };
     }
     return {
       text: inTmux
@@ -61,24 +68,55 @@ function report(
 }
 
 function manual(catalog: string): string {
-  return `Open another terminal and run: node --experimental-transform-types ${catalog}`;
+  return `Open another terminal and run: node ${catalog}`;
 }
 
-async function which(
-  $: {
-    process: {
-      run: (
-        argv: readonly string[],
-        init?: { timeoutMs?: number },
-      ) => Promise<{ exitCode: number }>;
-    };
-  },
-  name: string,
-): Promise<boolean> {
+type Proc = {
+  process: {
+    run: (
+      argv: readonly string[],
+      init?: { timeoutMs?: number },
+    ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
+  };
+};
+
+async function which($: Proc, name: string): Promise<boolean> {
   try {
     const run = await $.process.run(["which", name], { timeoutMs: 5_000 });
     return run.exitCode === 0;
   } catch {
     return false;
+  }
+}
+
+async function isExec($: Proc, path: string): Promise<boolean> {
+  try {
+    const run = await $.process.run(["test", "-x", path], { timeoutMs: 5_000 });
+    return run.exitCode === 0;
+  } catch {
+    return false;
+  }
+}
+
+async function appExists($: Proc, bundle: string, home: string): Promise<boolean> {
+  const paths = [`/Applications/${bundle}`];
+  if (home !== "") paths.push(`${home}/Applications/${bundle}`);
+  for (const path of paths) {
+    try {
+      const run = await $.process.run(["test", "-d", path], { timeoutMs: 5_000 });
+      if (run.exitCode === 0) return true;
+    } catch {
+      // The next candidate is the only other place the app is installed.
+    }
+  }
+  return false;
+}
+
+async function uname($: Proc): Promise<string> {
+  try {
+    const run = await $.process.run(["uname", "-s"], { timeoutMs: 5_000 });
+    return run.exitCode === 0 ? run.stdout.trim() : "";
+  } catch {
+    return "";
   }
 }
