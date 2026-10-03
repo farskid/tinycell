@@ -88,13 +88,14 @@ export function register(on: On): void {
     const gen = generation;
     keysDir = `${home}/.tinycell/pane-keys`;
     keySeq = 0;
+    // Omit closeOnEscape. The host only accepts true or absent, and absent
+    // leaves Escape as Claude's focus return. The pane stays open.
     const opened = await $.ui.open({
       id: PANE_ID,
       title: "tinycell",
       focus: true,
       rows: 36,
       columns: 80,
-      closeOnEscape: false,
     });
     if (!opened.isPlaced) {
       return {
