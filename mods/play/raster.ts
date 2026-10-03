@@ -116,8 +116,9 @@ function rgb(color: number, dim: boolean): number {
 }
 
 function columnGlyph(glyph: number, span: number, k: number): number {
-  // cellW 2 games pack two ASCII columns into one code point. U+6564 is
-  // "de", not a CJK ideograph. Split that pair. A real width-1 glyph stays.
+  // cellW 2 games pack two ASCII columns into one code point. U+6564 is "de"
+  // and U+2020 is two spaces, not a dagger. Split that pair the way the
+  // terminal painter does. U+2665 stays one heart.
   const pair = span >= 2 ? packedAscii(glyph) : null;
   if (pair) {
     if (k === 0) return pair[0];
@@ -132,7 +133,8 @@ function standIn(ch: number): number {
 }
 
 function packedAscii(ch: number): readonly [number, number] | null {
-  if (!Number.isInteger(ch) || ch <= 0x7e || ch > 0xffff || isRasterCell(ch)) return null;
+  if (ch === 0x2665) return null;
+  if (!Number.isInteger(ch) || ch <= 0x7e || ch > 0xffff) return null;
   const left = ch & 0xff;
   const right = (ch >>> 8) & 0xff;
   if (left < 0x20 || left > 0x7e || right < 0x20 || right > 0x7e) return null;

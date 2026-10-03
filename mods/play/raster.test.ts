@@ -23,7 +23,7 @@ test("wide and control glyphs are width-1 before blit", () => {
   surface.set(2, 0, packCell(0x3000));
   const frame = encodeRaster(surface, 2);
   const words = wordsOf(frame.cells);
-  const codes = words.filter((_, i) => i % 3 === 0);
+  const codes = codesOf(frame.cells);
   assert.equal(codes.includes(0x6564), false);
   assert.equal(codes.includes(0x09), false);
   assert.equal(codes.includes(0x3000), false);
@@ -33,6 +33,12 @@ test("wide and control glyphs are width-1 before blit", () => {
   assert.equal(isRasterCell(0x0301), false);
   assert.equal(isRasterCell(0x2588), true);
   assert.equal(isRasterCell(0x2665), true);
+  const spaces = new Surface(1, 1);
+  spaces.set(0, 0, packCell(0x2020));
+  const heart = new Surface(1, 1);
+  heart.set(0, 0, packCell(0x2665));
+  assert.deepEqual(codesOf(encodeRaster(spaces, 2).cells), [0x20, 0x20]);
+  assert.deepEqual(codesOf(encodeRaster(heart, 2).cells), [0x2665, 0x20]);
 });
 
 test("q is the back key and Escape is not", () => {
@@ -45,4 +51,8 @@ test("q is the back key and Escape is not", () => {
 function wordsOf(cells: string): number[] {
   const copy = Uint8Array.from(Buffer.from(cells, "base64"));
   return Array.from(new Uint32Array(copy.buffer));
+}
+
+function codesOf(cells: string): number[] {
+  return wordsOf(cells).filter((_, i) => i % 3 === 0);
 }
