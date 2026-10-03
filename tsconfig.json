@@ -22,7 +22,9 @@
     "src/**/*.ts",
     "games/**/*.ts",
     "demos/**/*.ts",
-    "mods/play/launch.ts",
-    "mods/play/launch.test.ts"
+    "mods/play/raster.ts",
+    "mods/play/raster.test.ts",
+    "mods/play/host.ts",
+    "mods/play/host.test.ts"
   ]
 }

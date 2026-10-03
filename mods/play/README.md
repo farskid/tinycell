@@ -6,9 +6,9 @@ Play the demo games while a Claude Code turn is in flight.
 claude --plugin-dir mods/play
 ```
 
-Type `/play`. It is a plugin command (`commands/play.md`), so it is in the slash menu as soon as the plugin loads, and the hooks module runs it immediately, without a model turn. Inside tmux it opens the catalog in the other pane. On macOS it opens iTerm when that app is installed, otherwise kitty or Ghostty when those are installed, otherwise Terminal.app. From a shell, `npm run play` is `node games/catalog.ts`. If the hooks module fails to load, or a terminal fails to open, Claude Code prints the reason in the transcript.
+Type `/play`. It is a plugin command (`commands/play.md`), so it is in the slash menu as soon as the plugin loads, and the hooks module runs it immediately, without a model turn. It opens a pane in the current Claude Code session: a Raster of the game grid, and a keys row you click once. `q` leaves a game for the list and leaves the list to close the pane. Escape is Claude's own key and is not used. From a shell, `npm run play` is `node games/catalog.ts` in that terminal. If the hooks module fails to load, Claude Code prints the reason in the transcript.
 
-The first launch lists the games. The next launch opens the last one. Ctrl-C leaves a game and returns to the list. Ctrl-C on the list quits.
+The first launch lists the games. The next launch opens the last one. In the pane, q leaves a game for the list, and q on the list closes the pane. `npm run play` still uses Ctrl-C for those two steps.
 
 Games: Battle City, Invaders, Snake, 2048, Flappy, Tetris, Contra.
 
