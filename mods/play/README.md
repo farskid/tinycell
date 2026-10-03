@@ -6,7 +6,7 @@ Play the demo games while a Claude Code turn is in flight.
 claude --plugin-dir mods/play
 ```
 
-Type `/play`. The command is immediate, so it runs without waiting for the agent to finish. Inside tmux it opens the catalog in the other pane. Otherwise it opens a new terminal. From a shell, `npm run play` is the same catalog.
+Type `/play`. It is a plugin command (`commands/play.md`), so it is in the slash menu as soon as the plugin loads, and the hooks module runs it immediately, without a model turn. Inside tmux it opens the catalog in the other pane. Otherwise it opens a new terminal. From a shell, `npm run play` is the same catalog. If the hooks module fails to load, Claude Code prints the reason in the transcript.
 
 The first launch lists the games. The next launch opens the last one. Ctrl-C leaves a game and returns to the list. Ctrl-C on the list quits.
 
