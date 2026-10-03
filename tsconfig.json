@@ -18,5 +18,13 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src/**/*.ts", "games/**/*.ts", "demos/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "games/**/*.ts",
+    "demos/**/*.ts",
+    "mods/play/raster.ts",
+    "mods/play/raster.test.ts",
+    "mods/play/host.ts",
+    "mods/play/host.test.ts"
+  ]
 }

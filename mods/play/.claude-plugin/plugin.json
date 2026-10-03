@@ -1,0 +1,6 @@
+{
+  "name": "tinycell",
+  "version": "0.1.0",
+  "description": "Play the tinycell demo games while a Claude Code turn runs.",
+  "author": { "name": "Farzad Yousefzadeh" }
+}

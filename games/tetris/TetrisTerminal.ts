@@ -19,5 +19,5 @@ try {
 } catch {
   engine = createEngine(opts);
 }
-bindFilePersist(engine, persist);
+bindFilePersist(engine, persist, { gameId: "tetris" });
 engine.start();
